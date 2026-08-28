@@ -1,6 +1,6 @@
 name: sowhat-task-worker
 
-x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:287f49db15842baa30a84f8fedf2729f6e586783c6279ed3bc54d90e5ef88e5a
+x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:ed837d98549022cd21bb40b50e9c9d24f47f7407746c345998594a1a70c76f0c
 
 x-logging: &default-logging
   driver: json-file
@@ -34,6 +34,8 @@ services:
     depends_on:
       task-worker-state-init:
         condition: service_completed_successfully
+    group_add:
+      - ${TASK_WORKER_DOCKER_SOCKET_GID:?TASK_WORKER_DOCKER_SOCKET_GID is required}
     environment:
       CODEX_HOME: /codex-auth
       DOCKER_HOST: unix:///run/docker.sock
@@ -49,7 +51,7 @@ services:
       TASK_WORKER_PROCESS_MODE: coordinator
       TASK_WORKER_REGISTRATION_TOKEN: ${TASK_WORKER_REGISTRATION_TOKEN:?TASK_WORKER_REGISTRATION_TOKEN is required}
       TASK_WORKER_SITE_URL: ${TASK_WORKER_SITE_URL:?TASK_WORKER_SITE_URL is required}
-      TASK_WORKER_VERSION: 0.2.2
+      TASK_WORKER_VERSION: 0.2.3
       http_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       https_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       no_proxy: 127.0.0.1,localhost,::1

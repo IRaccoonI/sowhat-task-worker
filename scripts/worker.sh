@@ -37,8 +37,19 @@ if [[ ! -S "${docker_socket}" ]]; then
   exit 3
 fi
 
+docker_socket_gid="${TASK_WORKER_DOCKER_SOCKET_GID:-}"
+if [[ -z "${docker_socket_gid}" ]]; then
+  docker_group="$(getent group docker || true)"
+  docker_socket_gid="$(cut -d: -f3 <<<"${docker_group}")"
+fi
+if [[ ! "${docker_socket_gid}" =~ ^[1-9][0-9]*$ ]]; then
+  echo "Could not resolve the rootless Docker socket group; rerun the host setup." >&2
+  exit 3
+fi
+
 export DOCKER_HOST="unix://${docker_socket}"
 export TASK_WORKER_DOCKER_SOCKET_PATH="${docker_socket}"
+export TASK_WORKER_DOCKER_SOCKET_GID="${docker_socket_gid}"
 compose=(docker compose --env-file "${env_file}" -f "${compose_file}")
 
 case "${action}" in

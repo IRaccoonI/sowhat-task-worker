@@ -11,12 +11,12 @@ repository, application source, credentials or production configuration.
 ## Supported release
 
 ```text
-Version: 0.2.2
+Version: 0.2.3
 Platform: linux/amd64
-Image: docker.io/iraccooni/sowhat-task-worker@sha256:287f49db15842baa30a84f8fedf2729f6e586783c6279ed3bc54d90e5ef88e5a
+Image: docker.io/iraccooni/sowhat-task-worker@sha256:ed837d98549022cd21bb40b50e9c9d24f47f7407746c345998594a1a70c76f0c
 ```
 
-There is deliberately no `latest` tag. Versions `0.2.0` and `0.2.1` are superseded.
+There is deliberately no `latest` tag. Versions `0.2.0` through `0.2.2` are superseded.
 
 ## Requirements
 
@@ -43,7 +43,7 @@ command -v dockerd-rootless-setuptool.sh
 Clone the setup repository at the version matching the image:
 
 ```bash
-git clone --branch v0.2.2 --depth 1 \
+git clone --branch v0.2.3 --depth 1 \
   https://github.com/IRaccoonI/sowhat-task-worker.git
 cd sowhat-task-worker
 ```
@@ -107,6 +107,12 @@ Start the worker and authorize Codex once, as the same non-root operator:
 ```bash
 scripts/worker.sh bootstrap
 ```
+
+The helper derives the rootless Docker socket group at runtime and adds only that supplementary
+group to the non-root coordinator. It does not add another persisted environment setting.
+
+If logs show `permission denied` for `/run/docker.sock`, make sure this checkout is on `v0.2.3` or
+newer and rerun `scripts/worker.sh start`.
 
 Open the displayed OpenAI verification URL and enter the one-time code. The login is stored only in
 the rootless-Docker volume `sowhat-task-worker-codex-auth`; it survives image upgrades and is shared
