@@ -24,7 +24,7 @@ There is deliberately no `latest` tag. Do not use the superseded `0.2.0` image.
 - dedicated non-root operator account with `sudo` access;
 - Git;
 - official Docker Engine, Docker Compose plugin and `docker-ce-rootless-extras`;
-- a worker-registration secret from the sowhat server operator;
+- server-administrator access to the sowhat API/worker environment;
 - one Codex device-code login.
 
 Follow Docker's official [Ubuntu installation guide](https://docs.docker.com/engine/install/ubuntu/)
@@ -65,9 +65,17 @@ TASK_WORKER_REGISTRATION_TOKEN=replace-with-the-server-registration-secret-at-le
 TASK_WORKER_ALLOWED_REPOSITORIES=owner/repository
 ```
 
-`TASK_WORKER_REGISTRATION_TOKEN` must exactly match the server-side
-`TASK_AUTOMATION_WORKER_REGISTRATION_TOKEN`. Use comma-separated exact `owner/repository` names when
-several repositories are allowed.
+- `TASK_WORKER_SITE_URL` is the public HTTPS origin shown in the browser address bar, without a
+  path. For the hosted product it is `https://sowhat-ai.com`.
+- `TASK_WORKER_REGISTRATION_TOKEN` is a dedicated bootstrap secret. A sowhat server administrator
+  generates it once with `openssl rand -hex 32`, stores the result as the production-worker value
+  `TASK_AUTOMATION_WORKER_REGISTRATION_TOKEN`, and gives the same value to the worker operator for
+  this file. It is not a GitHub token or an OpenAI API key. Never display it in the product UI,
+  commit it, or paste it into logs.
+- `TASK_WORKER_ALLOWED_REPOSITORIES` is the exact local allowlist. Copy the ready-made value from
+  **Space settings → Automation**, or enter the connected repository names as comma-separated
+  `owner/repository` values. Every allowed repository also needs an exact server-owned execution
+  profile.
 
 Never add a GitHub token, `CODEX_API_KEY`, Codex `auth.json`, model name, task commands or task
 budgets to this file. Those values either remain server-owned or are issued only for one task.
