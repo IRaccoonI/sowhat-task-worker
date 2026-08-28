@@ -1,0 +1,81 @@
+name: sowhat-task-worker
+
+x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:0195f6f3e71dad5e0dfcfe75c9681aea81a51dfbd92e34c1ec252b3e8dd78b47
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-file: "3"
+    max-size: 10m
+
+services:
+  task-worker-state-init:
+    image: *task-worker-image
+    pull_policy: always
+    cap_add: [CHOWN]
+    cap_drop: [ALL]
+    entrypoint: ["/bin/sh", "-c", "exec chown 1000:1000 /state /codex-auth"]
+    logging: *default-logging
+    mem_limit: 32m
+    network_mode: none
+    read_only: true
+    restart: "no"
+    security_opt: [no-new-privileges:true]
+    user: "0:0"
+    volumes:
+      - codex-auth:/codex-auth
+      - worker-state:/state
+
+  task-worker:
+    container_name: sowhat-task-worker
+    image: *task-worker-image
+    pull_policy: always
+    cap_drop: [ALL]
+    depends_on:
+      task-worker-state-init:
+        condition: service_completed_successfully
+    environment:
+      CODEX_HOME: /codex-auth
+      DOCKER_HOST: unix:///run/docker.sock
+      NODE_ENV: production
+      NODE_OPTIONS: --enable-source-maps --max-old-space-size=256
+      TASK_WORKER_ALLOWED_REPOSITORIES: ${TASK_WORKER_ALLOWED_REPOSITORIES:?TASK_WORKER_ALLOWED_REPOSITORIES is required}
+      TASK_WORKER_EXECUTION_IMAGE: *task-worker-image
+      TASK_WORKER_PROCESS_MODE: coordinator
+      TASK_WORKER_REGISTRATION_TOKEN: ${TASK_WORKER_REGISTRATION_TOKEN:?TASK_WORKER_REGISTRATION_TOKEN is required}
+      TASK_WORKER_SITE_URL: ${TASK_WORKER_SITE_URL:?TASK_WORKER_SITE_URL is required}
+      TASK_WORKER_VERSION: 0.2.1
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3004/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    logging: *default-logging
+    mem_limit: 512m
+    networks: [outbound]
+    pids_limit: 128
+    read_only: true
+    restart: unless-stopped
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:size=64m,mode=1777,noexec,nosuid
+    volumes:
+      - codex-auth:/codex-auth
+      - ${TASK_WORKER_DOCKER_SOCKET_PATH:-${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is required}/docker.sock}:/run/docker.sock
+      - worker-state:/state
+
+networks:
+  outbound:
+
+volumes:
+  codex-auth:
+    name: sowhat-task-worker-codex-auth
+  worker-state:
+    name: sowhat-task-worker-state

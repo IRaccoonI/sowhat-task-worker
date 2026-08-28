@@ -1,0 +1,48 @@
+# This Ubuntu-derived profile allows bubblewrap to work while AppArmor user-namespace restrictions
+# are enforced. Bubblewrap may create the user namespace and capabilities it needs, while processes
+# launched below it receive the stacked unprivileged profile and cannot retain capabilities.
+
+abi <abi/4.0>,
+
+include <tunables/global>
+
+profile bwrap /usr/bin/bwrap flags=(attach_disconnected) {
+  allow capability,
+  # Mapping remains required so child processes can run below the stacked profile.
+  allow file rwlkm /{**,},
+  allow network,
+  allow unix,
+  allow ptrace,
+  allow signal,
+  allow mqueue,
+  allow io_uring,
+  allow userns,
+  allow mount,
+  allow umount,
+  allow pivot_root,
+  allow dbus,
+  allow px /** -> bwrap//&unpriv_bwrap,
+
+  include if exists <local/bwrap-userns-restrict>
+}
+
+profile unpriv_bwrap flags=(attach_disconnected) {
+  allow file rwlkm /{**,},
+  allow network,
+  allow unix,
+  allow ptrace,
+  allow signal,
+  allow mqueue,
+  allow io_uring,
+  allow userns,
+  allow mount,
+  allow umount,
+  allow pivot_root,
+  allow dbus,
+
+  allow pix /** -> &unpriv_bwrap,
+
+  audit deny capability,
+
+  include if exists <local/unpriv_bwrap>
+}
