@@ -1,22 +1,22 @@
 # sowhat task worker
 
-Public, standalone setup files for
-[`docker.io/iraccooni/sowhat-task-worker`](https://hub.docker.com/r/iraccooni/sowhat-task-worker).
-The worker connects to a sowhat installation over outbound HTTPS and starts one isolated container
-for each accepted automation task. It opens no inbound port.
+The task worker connects to sowhat over outbound HTTPS and starts one fresh, isolated container for
+each accepted automation task. It opens no inbound port. The sowhat server supplies the model,
+timeouts, approved preparation and verification commands, and one short-lived repository-specific
+GitHub token. Codex uses one device login stored in a private Docker volume.
 
-This repository contains only operator setup files. It does not contain the private sowhat product
-repository, application source, credentials or production configuration.
-
-## Supported release
+Published `linux/amd64` image:
 
 ```text
-Version: 0.2.3
-Platform: linux/amd64
-Image: docker.io/iraccooni/sowhat-task-worker@sha256:ed837d98549022cd21bb40b50e9c9d24f47f7407746c345998594a1a70c76f0c
+docker.io/iraccooni/sowhat-task-worker:0.3.1
+docker.io/iraccooni/sowhat-task-worker@sha256:2b320e9e2ab10ac9b51d5ae0eb370608941ca94d295a092686735af0ecf75a27
 ```
 
-There is deliberately no `latest` tag. Versions `0.2.0` through `0.2.2` are superseded.
+Use the digest form. There is deliberately no `latest` tag. Versions `0.2.0` through `0.3.0` are
+superseded.
+
+The standalone setup files are public at
+[`IRaccoonI/sowhat-task-worker`](https://github.com/IRaccoonI/sowhat-task-worker).
 
 ## Requirements
 
@@ -27,9 +27,10 @@ There is deliberately no `latest` tag. Versions `0.2.0` through `0.2.2` are supe
 - server-administrator access to the sowhat API/worker environment;
 - one Codex device-code login.
 
-Follow Docker's official [Ubuntu installation guide](https://docs.docker.com/engine/install/ubuntu/)
-and [rootless-mode guide](https://docs.docker.com/engine/security/rootless/) if Docker is not
-installed yet. Confirm the required commands before continuing:
+Install missing host software by following Docker's official
+[Ubuntu installation guide](https://docs.docker.com/engine/install/ubuntu/) and
+[rootless-mode guide](https://docs.docker.com/engine/security/rootless/). Confirm the required
+commands before continuing:
 
 ```bash
 git --version
@@ -38,17 +39,23 @@ docker compose version
 command -v dockerd-rootless-setuptool.sh
 ```
 
-## Install
+## Complete setup with the repository scripts
 
-Clone the setup repository at the version matching the image:
+This is the recommended path. It is written for a dedicated non-root operator account on a clean
+Ubuntu 24.04 `amd64` host with `sudo` access.
+
+### 1. Download the setup scripts
 
 ```bash
-git clone --branch v0.2.3 --depth 1 \
+git clone --branch v0.3.1 --depth 1 \
   https://github.com/IRaccoonI/sowhat-task-worker.git
 cd sowhat-task-worker
 ```
 
-Create the protected configuration:
+Tag `v0.3.1` pins the scripts and Compose file used by worker image `0.3.1`. No access to the private
+sowhat product repository is required.
+
+### 2. Create the protected configuration
 
 ```bash
 install -d -m 0700 ~/.config/sowhat
@@ -57,12 +64,15 @@ chmod 0600 ~/.config/sowhat/task-worker.env
 nano ~/.config/sowhat/task-worker.env
 ```
 
-Set:
+The file contains three required operator-owned values, two safe diagnostic controls and one
+optional proxy setting:
 
 ```dotenv
 TASK_WORKER_SITE_URL=https://sowhat-ai.com
-TASK_WORKER_REGISTRATION_TOKEN=replace-with-the-server-registration-secret-at-least-32-characters
+TASK_WORKER_REGISTRATION_TOKEN=replace-with-the-production-registration-secret-at-least-32-characters
 TASK_WORKER_ALLOWED_REPOSITORIES=owner/repository
+LOG_LEVEL=debug
+TASK_WORKER_DIAGNOSTICS_INTERVAL_MS=5000
 TASK_WORKER_HTTP_PROXY=
 ```
 
@@ -77,105 +87,263 @@ TASK_WORKER_HTTP_PROXY=
   **Space settings → Automation**, or enter the connected repository names as comma-separated
   `owner/repository` values. Every allowed repository also needs an exact server-owned execution
   profile.
+- `LOG_LEVEL=debug` enables content-free run diagnostics, and
+  `TASK_WORKER_DIAGNOSTICS_INTERVAL_MS=5000` records one bounded resource sample every five
+  seconds. Samples include run/attempt/phase, elapsed time, CPU, current and peak memory, memory
+  limit and PID count. They never include task text, prompts, source paths, command output,
+  credentials, tokens or proxy values. Set `LOG_LEVEL=info` later to reduce verbosity without
+  changing task behavior.
 - `TASK_WORKER_HTTP_PROXY` is optional. Leave it empty for direct access. If Codex or GitHub is
   blocked from this host, set an HTTP or HTTPS proxy origin such as
   `http://user:password@proxy.example:8080`. It covers worker registration and claims, Codex device
   login and model requests, GitHub clone/API/push traffic, and trusted preparation commands.
-  Percent-encode the username and password. Paths, query strings, fragments and non-HTTP proxy
-  protocols are rejected.
+  Percent-encode the username and password before putting them in the URL. Paths, query strings,
+  fragments and non-HTTP proxy protocols are rejected.
 
-The proxy remains in the mode-`0600` operator file and local worker containers. It is not sent to
-the sowhat server, browser, task payload, prompt, logs or offline verification commands. Docker
+The proxy value remains in the mode-`0600` operator file and local worker containers. It is not sent
+to the sowhat server, browser, task payload, prompt, logs or offline verification commands. Docker
 image pulls are performed by the separate rootless Docker daemon; if Docker Hub is also blocked,
-configure the proxy separately for that user's rootless Docker service before `bootstrap`.
+configure the same proxy separately for that user's rootless Docker service before `bootstrap`.
 
 Never add a GitHub token, `CODEX_API_KEY`, Codex `auth.json`, model name, task commands or task
 budgets to this file. Those values either remain server-owned or are issued only for one task.
 
-Run the one-time host setup:
+### 3. Run the one-time host setup
 
 ```bash
 sudo scripts/setup-host.sh
 ```
 
-The script installs `uidmap`, loads the two checked-in AppArmor profiles, enables user lingering,
-creates the operator's dedicated rootless Docker daemon and verifies its socket. Do not replace the
-rootless socket with `/var/run/docker.sock`.
+The script performs the host operations that a normal container cannot perform safely:
 
-Start the worker and authorize Codex once, as the same non-root operator:
+- verifies Ubuntu 24.04 and that it was started with `sudo` by a non-root operator;
+- installs `uidmap` for subordinate user/group mappings;
+- installs and loads the checked-in `bwrap-userns-restrict` and `sowhat-task-runner` AppArmor
+  profiles;
+- enables user lingering so the worker survives logout and reboot;
+- installs and starts a dedicated rootless Docker daemon for the current operator account;
+- verifies that `/run/user/<uid>/docker.sock` exists and reports rootless security mode.
+
+The final line should look like:
+
+```text
+Task-worker host setup is ready for <user> (/run/user/<uid>/docker.sock).
+```
+
+Do not replace that socket with `/var/run/docker.sock`. The latter is the rootful daemon and gives a
+container root-equivalent control of the host; the worker rejects it.
+
+### 4. Start the worker and authorize Codex once
+
+Run this as the same non-root operator, without `sudo`:
 
 ```bash
 scripts/worker.sh bootstrap
 ```
 
-The helper derives the rootless Docker socket group at runtime and adds only that supplementary
-group to the non-root coordinator. It does not add another persisted environment setting.
+`bootstrap` does all container-level setup in order:
 
-If logs show `permission denied` for `/run/docker.sock`, make sure this checkout is on `v0.2.3` or
-newer and rerun `scripts/worker.sh start`.
+1. selects only the current account's rootless Docker socket;
+2. resolves the rootless socket's Docker group without adding another value to the operator env;
+3. pulls the exact image digest from this page;
+4. creates and initializes the private Codex-auth and worker-state volumes;
+5. starts the coordinator;
+6. runs `codex login --device-auth` inside the coordinator;
+7. waits for you to open the displayed OpenAI URL and enter the one-time code;
+8. restarts the coordinator, checks Codex login status and prints Compose status.
 
-Open the displayed OpenAI verification URL and enter the one-time code. The login is stored only in
-the rootless-Docker volume `sowhat-task-worker-codex-auth`; it survives image upgrades and is shared
-with disposable task containers.
+The device login is stored in the rootless-Docker volume
+`sowhat-task-worker-codex-auth`. It survives container replacement and image upgrades and is reused
+by each disposable task container. Do not print, copy or mount its `auth.json` anywhere else.
 
-Verify the result:
+### 5. Verify the result
 
 ```bash
 scripts/worker.sh status
 scripts/worker.sh logs
 ```
 
-`status` should show `sowhat-task-worker` as running and healthy. Press `Ctrl+C` to stop following
-logs without stopping the worker.
+`status` should show `sowhat-task-worker` as running and healthy. `logs` follows the newest 200
+metadata-only log lines; press `Ctrl+C` to stop following logs without stopping the worker.
 
-## Operation
+The worker can remain healthy and idle when automation is disabled. Before it can receive work, the
+sowhat server operator must configure an exact execution profile for the allowed repository and
+enable global task automation. A space manager must then enable its policy in **Space settings →
+Automation**. Start with pull-request delivery and a disposable accepted card.
+
+## Daily operation
+
+Run these commands from the cloned repository as the same non-root operator:
 
 ```bash
+# Pull the pinned image and start or update the coordinator.
 scripts/worker.sh start
+
+# Show container and health state.
 scripts/worker.sh status
+
+# Follow the newest 200 log lines.
 scripts/worker.sh logs
+
+# Stop the coordinator but keep its identity and Codex login.
 scripts/worker.sh stop
 ```
 
-`start` pulls the pinned image before starting. `stop` preserves the worker identity, pending
-delivery state and Codex login volumes.
-
-The helper reads `~/.config/sowhat/task-worker.env` by default. Override it for one command with:
+The helper reads `~/.config/sowhat/task-worker.env` by default. To use another protected file for
+one command:
 
 ```bash
 SOWHAT_TASK_WORKER_ENV_FILE=/absolute/path/task-worker.env \
   scripts/worker.sh status
 ```
 
-## Server-side activation
+## Manual Docker Compose setup
 
-A healthy worker can remain idle. Before it receives tasks, the sowhat server operator must:
+The scripts above use the checked-in Compose file. If you prefer to manage the coordinator with
+Docker Compose directly after the one-time repository-based host setup, save the following as
+`compose.yaml` and create a `.env` beside it with the same three required values and optional proxy.
 
-1. configure an exact execution profile for every locally allowed repository;
-2. set `TASK_AUTOMATION_ENABLED=true` for API and worker;
-3. configure `TASK_AUTOMATION_WORKER_REGISTRATION_TOKEN` with the value used by the operator worker;
-4. approve the required GitHub App repository permissions;
-5. enable a space policy in **Space settings → Automation**.
+```yaml
+name: sowhat-task-worker
 
-Start with pull-request delivery and a disposable accepted card. Proposed assistant cards are not
-eligible until a person accepts them.
+x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:2b320e9e2ab10ac9b51d5ae0eb370608941ca94d295a092686735af0ecf75a27
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-file: "3"
+    max-size: 10m
+
+services:
+  task-worker-state-init:
+    image: *task-worker-image
+    pull_policy: always
+    cap_add: [CHOWN]
+    cap_drop: [ALL]
+    entrypoint: ["/bin/sh", "-c", "exec chown 1000:1000 /state /codex-auth"]
+    logging: *default-logging
+    mem_limit: 32m
+    network_mode: none
+    read_only: true
+    restart: "no"
+    security_opt: [no-new-privileges:true]
+    user: "0:0"
+    volumes:
+      - codex-auth:/codex-auth
+      - worker-state:/state
+
+  task-worker:
+    container_name: sowhat-task-worker
+    image: *task-worker-image
+    pull_policy: always
+    cap_drop: [ALL]
+    depends_on:
+      task-worker-state-init:
+        condition: service_completed_successfully
+    group_add:
+      - ${TASK_WORKER_DOCKER_SOCKET_GID:?TASK_WORKER_DOCKER_SOCKET_GID is required}
+    environment:
+      CODEX_HOME: /codex-auth
+      DOCKER_HOST: unix:///run/docker.sock
+      HTTP_PROXY: ${TASK_WORKER_HTTP_PROXY:-}
+      HTTPS_PROXY: ${TASK_WORKER_HTTP_PROXY:-}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      NODE_ENV: production
+      NODE_OPTIONS: --enable-source-maps --max-old-space-size=256
+      NODE_USE_ENV_PROXY: "1"
+      NO_PROXY: 127.0.0.1,localhost,::1
+      TASK_WORKER_ALLOWED_REPOSITORIES: ${TASK_WORKER_ALLOWED_REPOSITORIES:?TASK_WORKER_ALLOWED_REPOSITORIES is required}
+      TASK_WORKER_EXECUTION_IMAGE: *task-worker-image
+      TASK_WORKER_HTTP_PROXY: ${TASK_WORKER_HTTP_PROXY:-}
+      TASK_WORKER_DIAGNOSTICS_INTERVAL_MS: ${TASK_WORKER_DIAGNOSTICS_INTERVAL_MS:-5000}
+      TASK_WORKER_PROCESS_MODE: coordinator
+      TASK_WORKER_REGISTRATION_TOKEN: ${TASK_WORKER_REGISTRATION_TOKEN:?TASK_WORKER_REGISTRATION_TOKEN is required}
+      TASK_WORKER_SITE_URL: ${TASK_WORKER_SITE_URL:?TASK_WORKER_SITE_URL is required}
+      TASK_WORKER_VERSION: 0.3.1
+      http_proxy: ${TASK_WORKER_HTTP_PROXY:-}
+      https_proxy: ${TASK_WORKER_HTTP_PROXY:-}
+      no_proxy: 127.0.0.1,localhost,::1
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3004/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    logging: *default-logging
+    mem_limit: 512m
+    networks: [outbound]
+    pids_limit: 128
+    read_only: true
+    restart: unless-stopped
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:size=64m,mode=1777,noexec,nosuid
+    volumes:
+      - codex-auth:/codex-auth
+      - ${TASK_WORKER_DOCKER_SOCKET_PATH:-${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is required}/docker.sock}:/run/docker.sock
+      - worker-state:/state
+
+networks:
+  outbound:
+
+volumes:
+  codex-auth:
+    name: sowhat-task-worker-codex-auth
+  worker-state:
+    name: sowhat-task-worker-state
+```
+
+The one-time host setup from step 3 is still required. Then run:
+
+```bash
+chmod 0600 .env
+export DOCKER_HOST="unix://${XDG_RUNTIME_DIR}/docker.sock"
+export TASK_WORKER_DOCKER_SOCKET_PATH="${XDG_RUNTIME_DIR}/docker.sock"
+export TASK_WORKER_DOCKER_SOCKET_GID="$(getent group docker | cut -d: -f3)"
+docker info --format '{{json .SecurityOptions}}'
+docker compose pull
+docker compose up -d
+docker compose exec task-worker \
+  /app/node_modules/.bin/codex \
+  -c 'cli_auth_credentials_store="file"' \
+  login --device-auth
+docker compose restart task-worker
+docker compose exec task-worker \
+  /app/node_modules/.bin/codex \
+  -c 'cli_auth_credentials_store="file"' \
+  login status
+docker compose ps
+```
+
+The `docker info` output must include `rootless`. `TASK_WORKER_DOCKER_SOCKET_GID` is derived from
+the host's Docker group and is not an operator secret or a fifth persisted setting. Keep all three
+runtime exports set in every shell used to manage this manual Compose project.
 
 ## Troubleshooting
 
-- **`Docker rootless extras are missing`** — install `docker-ce-rootless-extras`, then rerun
-  `sudo scripts/setup-host.sh`.
-- **`Missing rootless Docker socket`** — rerun host setup as the operator who will own the worker,
-  then check `systemctl --user status docker` from that user's real login session.
+- **`Docker rootless extras are missing`** — install `docker-ce-rootless-extras`, then rerun the
+  host setup.
+- **`Missing rootless Docker socket`** — rerun the host setup as the operator that will own the
+  worker, then check `systemctl --user status docker` from a real login session for that user.
+- **`permission denied` for `/run/docker.sock`** — use tag `v0.3.1` or newer. Its helper adds the
+  coordinator to the rootless socket group while keeping the application process non-root.
 - **Environment file mode error** — run `chmod 0600 ~/.config/sowhat/task-worker.env`.
-- **Worker is unhealthy after bootstrap** — rerun `bootstrap`, complete device login and inspect
-  `scripts/worker.sh logs`.
+- **Worker is unhealthy after bootstrap** — rerun `bootstrap` and complete the device-code login,
+  then inspect `scripts/worker.sh logs`.
 - **Codex, GitHub or worker registration cannot connect** — set a validated HTTP/HTTPS origin in
   `TASK_WORKER_HTTP_PROXY`, rerun `scripts/worker.sh bootstrap`, and configure the rootless Docker
   service separately if the failure happens while pulling an image.
-- **Repository is refused** — use exact `owner/repository` spelling locally and configure the same
-  repository execution profile on the sowhat server.
-- **Healthy worker receives no task** — verify global automation, the space policy, source column,
-  repository access and that the card is accepted rather than proposed.
+- **Repository is refused** — use the exact `owner/repository` spelling in the local allowlist and
+  ask the sowhat server operator to configure the same repository execution profile.
+- **Healthy worker receives no task** — verify server-wide automation, the space's Automation
+  policy, the configured source column, repository access, and that the card is accepted rather
+  than still proposed.
 
 The coordinator stores no permanent GitHub credential, exposes no home port and removes each task
 container after the attempt finishes.
