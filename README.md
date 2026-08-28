@@ -47,12 +47,12 @@ Ubuntu 24.04 `amd64` host with `sudo` access.
 ### 1. Download the setup scripts
 
 ```bash
-git clone --branch v0.3.7 --depth 1 \
+git clone --branch v0.3.8 --depth 1 \
   https://github.com/IRaccoonI/sowhat-task-worker.git
 cd sowhat-task-worker
 ```
 
-Tag `v0.3.7` pins the scripts and Compose file used by worker image `0.3.7`. No access to the private
+Tag `v0.3.8` pins the scripts, AppArmor profiles and Compose file used by worker image `0.3.7`. No access to the private
 sowhat product repository is required.
 
 ### 2. Create the protected configuration
@@ -333,6 +333,9 @@ runtime exports set in every shell used to manage this manual Compose project.
   worker, then check `systemctl --user status docker` from a real login session for that user.
 - **`permission denied` for `/run/docker.sock`** — use tag `v0.3.4` or newer. Its helper adds the
   coordinator to the rootless socket group while keeping the application process non-root.
+- **A dependency CLI such as `prettier` reports `Permission denied` below `/runs`** — use tag
+  `v0.3.8` or newer and rerun `sudo scripts/setup-host.sh` to load the corrected task AppArmor
+  profile before restarting the worker.
 - **Environment file mode error** — run `chmod 0600 ~/.config/sowhat/task-worker.env`.
 - **Worker is unhealthy after bootstrap** — rerun `bootstrap` and complete the device-code login,
   then inspect `scripts/worker.sh logs`.
