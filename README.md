@@ -11,12 +11,12 @@ repository, application source, credentials or production configuration.
 ## Supported release
 
 ```text
-Version: 0.2.1
+Version: 0.2.2
 Platform: linux/amd64
-Image: docker.io/iraccooni/sowhat-task-worker@sha256:0195f6f3e71dad5e0dfcfe75c9681aea81a51dfbd92e34c1ec252b3e8dd78b47
+Image: docker.io/iraccooni/sowhat-task-worker@sha256:287f49db15842baa30a84f8fedf2729f6e586783c6279ed3bc54d90e5ef88e5a
 ```
 
-There is deliberately no `latest` tag. Do not use the superseded `0.2.0` image.
+There is deliberately no `latest` tag. Versions `0.2.0` and `0.2.1` are superseded.
 
 ## Requirements
 
@@ -43,12 +43,12 @@ command -v dockerd-rootless-setuptool.sh
 Clone the setup repository at the version matching the image:
 
 ```bash
-git clone --branch v0.2.1 --depth 1 \
+git clone --branch v0.2.2 --depth 1 \
   https://github.com/IRaccoonI/sowhat-task-worker.git
 cd sowhat-task-worker
 ```
 
-Create the protected three-value configuration:
+Create the protected configuration:
 
 ```bash
 install -d -m 0700 ~/.config/sowhat
@@ -63,6 +63,7 @@ Set:
 TASK_WORKER_SITE_URL=https://sowhat-ai.com
 TASK_WORKER_REGISTRATION_TOKEN=replace-with-the-server-registration-secret-at-least-32-characters
 TASK_WORKER_ALLOWED_REPOSITORIES=owner/repository
+TASK_WORKER_HTTP_PROXY=
 ```
 
 - `TASK_WORKER_SITE_URL` is the public HTTPS origin shown in the browser address bar, without a
@@ -76,6 +77,17 @@ TASK_WORKER_ALLOWED_REPOSITORIES=owner/repository
   **Space settings → Automation**, or enter the connected repository names as comma-separated
   `owner/repository` values. Every allowed repository also needs an exact server-owned execution
   profile.
+- `TASK_WORKER_HTTP_PROXY` is optional. Leave it empty for direct access. If Codex or GitHub is
+  blocked from this host, set an HTTP or HTTPS proxy origin such as
+  `http://user:password@proxy.example:8080`. It covers worker registration and claims, Codex device
+  login and model requests, GitHub clone/API/push traffic, and trusted preparation commands.
+  Percent-encode the username and password. Paths, query strings, fragments and non-HTTP proxy
+  protocols are rejected.
+
+The proxy remains in the mode-`0600` operator file and local worker containers. It is not sent to
+the sowhat server, browser, task payload, prompt, logs or offline verification commands. Docker
+image pulls are performed by the separate rootless Docker daemon; if Docker Hub is also blocked,
+configure the proxy separately for that user's rootless Docker service before `bootstrap`.
 
 Never add a GitHub token, `CODEX_API_KEY`, Codex `auth.json`, model name, task commands or task
 budgets to this file. Those values either remain server-owned or are issued only for one task.
@@ -151,6 +163,9 @@ eligible until a person accepts them.
 - **Environment file mode error** — run `chmod 0600 ~/.config/sowhat/task-worker.env`.
 - **Worker is unhealthy after bootstrap** — rerun `bootstrap`, complete device login and inspect
   `scripts/worker.sh logs`.
+- **Codex, GitHub or worker registration cannot connect** — set a validated HTTP/HTTPS origin in
+  `TASK_WORKER_HTTP_PROXY`, rerun `scripts/worker.sh bootstrap`, and configure the rootless Docker
+  service separately if the failure happens while pulling an image.
 - **Repository is refused** — use exact `owner/repository` spelling locally and configure the same
   repository execution profile on the sowhat server.
 - **Healthy worker receives no task** — verify global automation, the space policy, source column,

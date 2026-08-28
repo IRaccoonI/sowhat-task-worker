@@ -1,6 +1,6 @@
 name: sowhat-task-worker
 
-x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:0195f6f3e71dad5e0dfcfe75c9681aea81a51dfbd92e34c1ec252b3e8dd78b47
+x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:287f49db15842baa30a84f8fedf2729f6e586783c6279ed3bc54d90e5ef88e5a
 
 x-logging: &default-logging
   driver: json-file
@@ -37,14 +37,22 @@ services:
     environment:
       CODEX_HOME: /codex-auth
       DOCKER_HOST: unix:///run/docker.sock
+      HTTP_PROXY: ${TASK_WORKER_HTTP_PROXY:-}
+      HTTPS_PROXY: ${TASK_WORKER_HTTP_PROXY:-}
       NODE_ENV: production
       NODE_OPTIONS: --enable-source-maps --max-old-space-size=256
+      NODE_USE_ENV_PROXY: "1"
+      NO_PROXY: 127.0.0.1,localhost,::1
       TASK_WORKER_ALLOWED_REPOSITORIES: ${TASK_WORKER_ALLOWED_REPOSITORIES:?TASK_WORKER_ALLOWED_REPOSITORIES is required}
       TASK_WORKER_EXECUTION_IMAGE: *task-worker-image
+      TASK_WORKER_HTTP_PROXY: ${TASK_WORKER_HTTP_PROXY:-}
       TASK_WORKER_PROCESS_MODE: coordinator
       TASK_WORKER_REGISTRATION_TOKEN: ${TASK_WORKER_REGISTRATION_TOKEN:?TASK_WORKER_REGISTRATION_TOKEN is required}
       TASK_WORKER_SITE_URL: ${TASK_WORKER_SITE_URL:?TASK_WORKER_SITE_URL is required}
-      TASK_WORKER_VERSION: 0.2.1
+      TASK_WORKER_VERSION: 0.2.2
+      http_proxy: ${TASK_WORKER_HTTP_PROXY:-}
+      https_proxy: ${TASK_WORKER_HTTP_PROXY:-}
+      no_proxy: 127.0.0.1,localhost,::1
     healthcheck:
       test:
         [
