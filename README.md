@@ -12,7 +12,7 @@ docker.io/iraccooni/sowhat-task-worker:0.3.16
 docker.io/iraccooni/sowhat-task-worker@sha256:8b705e79e626a704b1e66172c4ada107d9185c506d4cba2e135347647bfc66f0
 ```
 
-Use the digest form. There is deliberately no `latest` tag. Versions `0.2.0` through `0.3.14` are
+Use the digest form. There is deliberately no `latest` tag. Versions `0.2.0` through `0.3.15` are
 superseded.
 
 The standalone setup files are public at
