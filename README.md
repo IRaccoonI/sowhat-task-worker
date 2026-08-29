@@ -8,12 +8,17 @@ GitHub token. Codex uses one device login stored in a private Docker volume.
 Published `linux/amd64` image:
 
 ```text
-docker.io/iraccooni/sowhat-task-worker:0.3.20
-docker.io/iraccooni/sowhat-task-worker@sha256:6a45e7c688a4eb109183ecb200e55992040d1caafde92e7b875d44dbe027c642
+docker.io/iraccooni/sowhat-task-worker:0.3.21
+docker.io/iraccooni/sowhat-task-worker@sha256:5984d64570ba051e26e0794ffdbb84219c49ca3b5d495b4faa8d61a94325e1b6
 ```
 
 Use the digest form. There is deliberately no `latest` tag. Versions `0.2.0` through `0.3.18` are
 superseded.
+
+Before every claim and again before every task child, the coordinator requires at least 32 GiB and
+10% free on its backing filesystem. It waits without claiming work when either reserve is missing.
+Every task child, sandbox probe and run-scoped companion also uses bounded `json-file` rotation of
+three 10 MiB files, independently from daemon defaults.
 
 The standalone setup files are public at
 [`IRaccoonI/sowhat-task-worker`](https://github.com/IRaccoonI/sowhat-task-worker).
@@ -47,12 +52,12 @@ Ubuntu 24.04 `amd64` host with `sudo` access.
 ### 1. Download the setup scripts
 
 ```bash
-git clone --branch v0.3.20 --depth 1 \
+git clone --branch v0.3.21 --depth 1 \
   https://github.com/IRaccoonI/sowhat-task-worker.git
 cd sowhat-task-worker
 ```
 
-Tag `v0.3.20` pins the scripts, AppArmor profiles and Compose file used by worker image `0.3.20`.
+Tag `v0.3.21` pins the scripts, AppArmor profiles and Compose file used by worker image `0.3.21`.
 No access to the private sowhat product repository is required.
 
 ### 2. Create the protected configuration
@@ -212,7 +217,7 @@ Docker Compose directly after the one-time repository-based host setup, save the
 ```yaml
 name: sowhat-task-worker
 
-x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:6a45e7c688a4eb109183ecb200e55992040d1caafde92e7b875d44dbe027c642
+x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:5984d64570ba051e26e0794ffdbb84219c49ca3b5d495b4faa8d61a94325e1b6
 
 x-logging: &default-logging
   driver: json-file
@@ -267,7 +272,7 @@ services:
       TASK_WORKER_PROCESS_MODE: coordinator
       TASK_WORKER_REGISTRATION_TOKEN: ${TASK_WORKER_REGISTRATION_TOKEN:?TASK_WORKER_REGISTRATION_TOKEN is required}
       TASK_WORKER_SITE_URL: ${TASK_WORKER_SITE_URL:?TASK_WORKER_SITE_URL is required}
-      TASK_WORKER_VERSION: 0.3.20
+      TASK_WORKER_VERSION: 0.3.21
       http_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       https_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       no_proxy: 127.0.0.1,localhost,::1
