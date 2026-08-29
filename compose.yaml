@@ -1,6 +1,6 @@
 name: sowhat-task-worker
 
-x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:c56054329d0eff878ff44a773eae6854cb409ae0d341a3287ddca9b44c0563d2
+x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:8b7a2a441834799f92755c8620bde3cc300a4316ae95714e450fd251c6524194
 
 x-logging: &default-logging
   driver: json-file
@@ -14,7 +14,12 @@ services:
     pull_policy: always
     cap_add: [CHOWN]
     cap_drop: [ALL]
-    entrypoint: ["/bin/sh", "-c", "exec chown 1000:1000 /state /codex-auth"]
+    entrypoint:
+      [
+        "/bin/sh",
+        "-c",
+        "chown 1000:1000 /state /codex-auth /failure-diagnostics && chmod 0700 /failure-diagnostics",
+      ]
     logging: *default-logging
     mem_limit: 32m
     network_mode: none
@@ -24,6 +29,7 @@ services:
     user: "0:0"
     volumes:
       - codex-auth:/codex-auth
+      - failure-diagnostics:/failure-diagnostics
       - worker-state:/state
 
   task-worker:
@@ -48,12 +54,13 @@ services:
       NO_PROXY: 127.0.0.1,localhost,::1
       TASK_WORKER_ALLOWED_REPOSITORIES: ${TASK_WORKER_ALLOWED_REPOSITORIES:?TASK_WORKER_ALLOWED_REPOSITORIES is required}
       TASK_WORKER_EXECUTION_IMAGE: *task-worker-image
+      TASK_WORKER_RETAIN_FAILURE_DIAGNOSTICS: ${TASK_WORKER_RETAIN_FAILURE_DIAGNOSTICS:-false}
       TASK_WORKER_HTTP_PROXY: ${TASK_WORKER_HTTP_PROXY:-}
       TASK_WORKER_DIAGNOSTICS_INTERVAL_MS: ${TASK_WORKER_DIAGNOSTICS_INTERVAL_MS:-5000}
       TASK_WORKER_PROCESS_MODE: coordinator
       TASK_WORKER_REGISTRATION_TOKEN: ${TASK_WORKER_REGISTRATION_TOKEN:?TASK_WORKER_REGISTRATION_TOKEN is required}
       TASK_WORKER_SITE_URL: ${TASK_WORKER_SITE_URL:?TASK_WORKER_SITE_URL is required}
-      TASK_WORKER_VERSION: 0.3.17
+      TASK_WORKER_VERSION: 0.3.18
       http_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       https_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       no_proxy: 127.0.0.1,localhost,::1
@@ -80,6 +87,7 @@ services:
       - /tmp:size=64m,mode=1777,noexec,nosuid
     volumes:
       - codex-auth:/codex-auth
+      - failure-diagnostics:/failure-diagnostics
       - ${TASK_WORKER_DOCKER_SOCKET_PATH:-${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is required}/docker.sock}:/run/docker.sock
       - worker-state:/state
 
@@ -89,5 +97,7 @@ networks:
 volumes:
   codex-auth:
     name: sowhat-task-worker-codex-auth
+  failure-diagnostics:
+    name: sowhat-task-worker-failure-diagnostics
   worker-state:
     name: sowhat-task-worker-state

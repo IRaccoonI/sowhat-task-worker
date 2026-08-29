@@ -8,11 +8,11 @@ GitHub token. Codex uses one device login stored in a private Docker volume.
 Published `linux/amd64` image:
 
 ```text
-docker.io/iraccooni/sowhat-task-worker:0.3.17
-docker.io/iraccooni/sowhat-task-worker@sha256:c56054329d0eff878ff44a773eae6854cb409ae0d341a3287ddca9b44c0563d2
+docker.io/iraccooni/sowhat-task-worker:0.3.18
+docker.io/iraccooni/sowhat-task-worker@sha256:8b7a2a441834799f92755c8620bde3cc300a4316ae95714e450fd251c6524194
 ```
 
-Use the digest form. There is deliberately no `latest` tag. Versions `0.2.0` through `0.3.16` are
+Use the digest form. There is deliberately no `latest` tag. Versions `0.2.0` through `0.3.17` are
 superseded.
 
 The standalone setup files are public at
@@ -47,12 +47,12 @@ Ubuntu 24.04 `amd64` host with `sudo` access.
 ### 1. Download the setup scripts
 
 ```bash
-git clone --branch v0.3.17 --depth 1 \
+git clone --branch v0.3.18 --depth 1 \
   https://github.com/IRaccoonI/sowhat-task-worker.git
 cd sowhat-task-worker
 ```
 
-Tag `v0.3.17` pins the scripts, AppArmor profiles and Compose file used by worker image `0.3.17`.
+Tag `v0.3.18` pins the scripts, AppArmor profiles and Compose file used by worker image `0.3.18`.
 No access to the private sowhat product repository is required.
 
 ### 2. Create the protected configuration
@@ -73,6 +73,7 @@ TASK_WORKER_REGISTRATION_TOKEN=replace-with-the-production-registration-secret-a
 TASK_WORKER_ALLOWED_REPOSITORIES=owner/repository
 LOG_LEVEL=debug
 TASK_WORKER_DIAGNOSTICS_INTERVAL_MS=5000
+TASK_WORKER_RETAIN_FAILURE_DIAGNOSTICS=false
 TASK_WORKER_HTTP_PROXY=
 ```
 
@@ -93,6 +94,11 @@ TASK_WORKER_HTTP_PROXY=
   limit and PID count. They never include task text, prompts, source paths, command output,
   credentials, tokens or proxy values. Set `LOG_LEVEL=info` later to reduce verbosity without
   changing task behavior.
+- `TASK_WORKER_RETAIN_FAILURE_DIAGNOSTICS=false` is the safe default. Set it to `true` only while an
+  operator diagnoses a final task failure. The separate local volume then retains at most three
+  24-hour bundles containing a bounded staged diff and the already-redacted final gate diagnostic.
+  Bundles never enter sowhat, the browser, results or logs; treat the volume as private source
+  material and switch retention off after diagnosis.
 - `TASK_WORKER_HTTP_PROXY` is optional. Leave it empty for direct access. If Codex or GitHub is
   blocked from this host, set an HTTP or HTTPS proxy origin such as
   `http://user:password@proxy.example:8080`. It covers worker registration and claims, Codex device
@@ -206,7 +212,7 @@ Docker Compose directly after the one-time repository-based host setup, save the
 ```yaml
 name: sowhat-task-worker
 
-x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:c56054329d0eff878ff44a773eae6854cb409ae0d341a3287ddca9b44c0563d2
+x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:8b7a2a441834799f92755c8620bde3cc300a4316ae95714e450fd251c6524194
 
 x-logging: &default-logging
   driver: json-file
@@ -220,7 +226,12 @@ services:
     pull_policy: always
     cap_add: [CHOWN]
     cap_drop: [ALL]
-    entrypoint: ["/bin/sh", "-c", "exec chown 1000:1000 /state /codex-auth"]
+    entrypoint:
+      [
+        "/bin/sh",
+        "-c",
+        "chown 1000:1000 /state /codex-auth /failure-diagnostics && chmod 0700 /failure-diagnostics",
+      ]
     logging: *default-logging
     mem_limit: 32m
     network_mode: none
@@ -230,6 +241,7 @@ services:
     user: "0:0"
     volumes:
       - codex-auth:/codex-auth
+      - failure-diagnostics:/failure-diagnostics
       - worker-state:/state
 
   task-worker:
@@ -254,12 +266,13 @@ services:
       NO_PROXY: 127.0.0.1,localhost,::1
       TASK_WORKER_ALLOWED_REPOSITORIES: ${TASK_WORKER_ALLOWED_REPOSITORIES:?TASK_WORKER_ALLOWED_REPOSITORIES is required}
       TASK_WORKER_EXECUTION_IMAGE: *task-worker-image
+      TASK_WORKER_RETAIN_FAILURE_DIAGNOSTICS: ${TASK_WORKER_RETAIN_FAILURE_DIAGNOSTICS:-false}
       TASK_WORKER_HTTP_PROXY: ${TASK_WORKER_HTTP_PROXY:-}
       TASK_WORKER_DIAGNOSTICS_INTERVAL_MS: ${TASK_WORKER_DIAGNOSTICS_INTERVAL_MS:-5000}
       TASK_WORKER_PROCESS_MODE: coordinator
       TASK_WORKER_REGISTRATION_TOKEN: ${TASK_WORKER_REGISTRATION_TOKEN:?TASK_WORKER_REGISTRATION_TOKEN is required}
       TASK_WORKER_SITE_URL: ${TASK_WORKER_SITE_URL:?TASK_WORKER_SITE_URL is required}
-      TASK_WORKER_VERSION: 0.3.17
+      TASK_WORKER_VERSION: 0.3.18
       http_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       https_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       no_proxy: 127.0.0.1,localhost,::1
@@ -286,6 +299,7 @@ services:
       - /tmp:size=64m,mode=1777,noexec,nosuid
     volumes:
       - codex-auth:/codex-auth
+      - failure-diagnostics:/failure-diagnostics
       - ${TASK_WORKER_DOCKER_SOCKET_PATH:-${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is required}/docker.sock}:/run/docker.sock
       - worker-state:/state
 
@@ -295,6 +309,8 @@ networks:
 volumes:
   codex-auth:
     name: sowhat-task-worker-codex-auth
+  failure-diagnostics:
+    name: sowhat-task-worker-failure-diagnostics
   worker-state:
     name: sowhat-task-worker-state
 ```
