@@ -1,6 +1,6 @@
 name: sowhat-task-worker
 
-x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:a32a0b54c9a1e68dd28205ac618a5e353d27afdca0368364c5ec3f2428540ebc
+x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:8b705e79e626a704b1e66172c4ada107d9185c506d4cba2e135347647bfc66f0
 
 x-logging: &default-logging
   driver: json-file
@@ -53,7 +53,7 @@ services:
       TASK_WORKER_PROCESS_MODE: coordinator
       TASK_WORKER_REGISTRATION_TOKEN: ${TASK_WORKER_REGISTRATION_TOKEN:?TASK_WORKER_REGISTRATION_TOKEN is required}
       TASK_WORKER_SITE_URL: ${TASK_WORKER_SITE_URL:?TASK_WORKER_SITE_URL is required}
-      TASK_WORKER_VERSION: 0.3.15
+      TASK_WORKER_VERSION: 0.3.16
       http_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       https_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       no_proxy: 127.0.0.1,localhost,::1
