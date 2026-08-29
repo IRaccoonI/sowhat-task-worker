@@ -8,11 +8,11 @@ GitHub token. Codex uses one device login stored in a private Docker volume.
 Published `linux/amd64` image:
 
 ```text
-docker.io/iraccooni/sowhat-task-worker:0.3.13
-docker.io/iraccooni/sowhat-task-worker@sha256:90129954ee875232a8b381a0a4891a019ed2858f0acf09a94f708cbd808923fe
+docker.io/iraccooni/sowhat-task-worker:0.3.14
+docker.io/iraccooni/sowhat-task-worker@sha256:1801fc190438cc1ce24ba4400f8f073ea94b4158f7d444302010e99fb4d85570
 ```
 
-Use the digest form. There is deliberately no `latest` tag. Versions `0.2.0` through `0.3.12` are
+Use the digest form. There is deliberately no `latest` tag. Versions `0.2.0` through `0.3.13` are
 superseded.
 
 The standalone setup files are public at
@@ -47,12 +47,12 @@ Ubuntu 24.04 `amd64` host with `sudo` access.
 ### 1. Download the setup scripts
 
 ```bash
-git clone --branch v0.3.13 --depth 1 \
+git clone --branch v0.3.14 --depth 1 \
   https://github.com/IRaccoonI/sowhat-task-worker.git
 cd sowhat-task-worker
 ```
 
-Tag `v0.3.13` pins the scripts, AppArmor profiles and Compose file used by worker image `0.3.13`.
+Tag `v0.3.14` pins the scripts, AppArmor profiles and Compose file used by worker image `0.3.14`.
 No access to the private sowhat product repository is required.
 
 ### 2. Create the protected configuration
@@ -206,7 +206,7 @@ Docker Compose directly after the one-time repository-based host setup, save the
 ```yaml
 name: sowhat-task-worker
 
-x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:90129954ee875232a8b381a0a4891a019ed2858f0acf09a94f708cbd808923fe
+x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:1801fc190438cc1ce24ba4400f8f073ea94b4158f7d444302010e99fb4d85570
 
 x-logging: &default-logging
   driver: json-file
@@ -259,7 +259,7 @@ services:
       TASK_WORKER_PROCESS_MODE: coordinator
       TASK_WORKER_REGISTRATION_TOKEN: ${TASK_WORKER_REGISTRATION_TOKEN:?TASK_WORKER_REGISTRATION_TOKEN is required}
       TASK_WORKER_SITE_URL: ${TASK_WORKER_SITE_URL:?TASK_WORKER_SITE_URL is required}
-      TASK_WORKER_VERSION: 0.3.13
+      TASK_WORKER_VERSION: 0.3.14
       http_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       https_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       no_proxy: 127.0.0.1,localhost,::1
@@ -334,7 +334,7 @@ runtime exports set in every shell used to manage this manual Compose project.
 - **`permission denied` for `/run/docker.sock`** — use tag `v0.3.4` or newer. Its helper adds the
   coordinator to the rootless socket group while keeping the application process non-root.
 - **A dependency CLI such as `prettier` reports `Permission denied` below `/runs`** — use tag
-  `v0.3.13` or newer. It pins worker `0.3.13`, which explicitly mounts the disposable task tmpfs with
+  `v0.3.14` or newer. It pins worker `0.3.14`, which explicitly mounts the disposable task tmpfs with
   `exec`, and includes the matching AppArmor profile. Rerun `sudo scripts/setup-host.sh`, then
   bootstrap the worker again.
 - **Environment file mode error** — run `chmod 0600 ~/.config/sowhat/task-worker.env`.
