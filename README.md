@@ -8,11 +8,11 @@ GitHub token. Codex uses one device login stored in a private Docker volume.
 Published `linux/amd64` image:
 
 ```text
-docker.io/iraccooni/sowhat-task-worker:0.3.16
-docker.io/iraccooni/sowhat-task-worker@sha256:8b705e79e626a704b1e66172c4ada107d9185c506d4cba2e135347647bfc66f0
+docker.io/iraccooni/sowhat-task-worker:0.3.17
+docker.io/iraccooni/sowhat-task-worker@sha256:c56054329d0eff878ff44a773eae6854cb409ae0d341a3287ddca9b44c0563d2
 ```
 
-Use the digest form. There is deliberately no `latest` tag. Versions `0.2.0` through `0.3.15` are
+Use the digest form. There is deliberately no `latest` tag. Versions `0.2.0` through `0.3.16` are
 superseded.
 
 The standalone setup files are public at
@@ -47,12 +47,12 @@ Ubuntu 24.04 `amd64` host with `sudo` access.
 ### 1. Download the setup scripts
 
 ```bash
-git clone --branch v0.3.16 --depth 1 \
+git clone --branch v0.3.17 --depth 1 \
   https://github.com/IRaccoonI/sowhat-task-worker.git
 cd sowhat-task-worker
 ```
 
-Tag `v0.3.16` pins the scripts, AppArmor profiles and Compose file used by worker image `0.3.16`.
+Tag `v0.3.17` pins the scripts, AppArmor profiles and Compose file used by worker image `0.3.17`.
 No access to the private sowhat product repository is required.
 
 ### 2. Create the protected configuration
@@ -206,7 +206,7 @@ Docker Compose directly after the one-time repository-based host setup, save the
 ```yaml
 name: sowhat-task-worker
 
-x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:8b705e79e626a704b1e66172c4ada107d9185c506d4cba2e135347647bfc66f0
+x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:c56054329d0eff878ff44a773eae6854cb409ae0d341a3287ddca9b44c0563d2
 
 x-logging: &default-logging
   driver: json-file
@@ -259,7 +259,7 @@ services:
       TASK_WORKER_PROCESS_MODE: coordinator
       TASK_WORKER_REGISTRATION_TOKEN: ${TASK_WORKER_REGISTRATION_TOKEN:?TASK_WORKER_REGISTRATION_TOKEN is required}
       TASK_WORKER_SITE_URL: ${TASK_WORKER_SITE_URL:?TASK_WORKER_SITE_URL is required}
-      TASK_WORKER_VERSION: 0.3.16
+      TASK_WORKER_VERSION: 0.3.17
       http_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       https_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       no_proxy: 127.0.0.1,localhost,::1
