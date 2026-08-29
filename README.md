@@ -47,12 +47,12 @@ Ubuntu 24.04 `amd64` host with `sudo` access.
 ### 1. Download the setup scripts
 
 ```bash
-git clone --branch v0.3.18 --depth 1 \
+git clone --branch v0.3.18.1 --depth 1 \
   https://github.com/IRaccoonI/sowhat-task-worker.git
 cd sowhat-task-worker
 ```
 
-Tag `v0.3.18` pins the scripts, AppArmor profiles and Compose file used by worker image `0.3.18`.
+Tag `v0.3.18.1` pins the scripts, AppArmor profiles and Compose file used by worker image `0.3.18`.
 No access to the private sowhat product repository is required.
 
 ### 2. Create the protected configuration
@@ -226,12 +226,7 @@ services:
     pull_policy: always
     cap_add: [CHOWN]
     cap_drop: [ALL]
-    entrypoint:
-      [
-        "/bin/sh",
-        "-c",
-        "chown 1000:1000 /state /codex-auth /failure-diagnostics && chmod 0700 /failure-diagnostics",
-      ]
+    entrypoint: ["/bin/sh", "-c", "exec chown 1000:1000 /state /codex-auth /failure-diagnostics"]
     logging: *default-logging
     mem_limit: 32m
     network_mode: none

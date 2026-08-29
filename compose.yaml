@@ -14,12 +14,7 @@ services:
     pull_policy: always
     cap_add: [CHOWN]
     cap_drop: [ALL]
-    entrypoint:
-      [
-        "/bin/sh",
-        "-c",
-        "chown 1000:1000 /state /codex-auth /failure-diagnostics && chmod 0700 /failure-diagnostics",
-      ]
+    entrypoint: ["/bin/sh", "-c", "exec chown 1000:1000 /state /codex-auth /failure-diagnostics"]
     logging: *default-logging
     mem_limit: 32m
     network_mode: none
