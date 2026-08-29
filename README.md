@@ -8,8 +8,8 @@ GitHub token. Codex uses one device login stored in a private Docker volume.
 Published `linux/amd64` image:
 
 ```text
-docker.io/iraccooni/sowhat-task-worker:0.3.21
-docker.io/iraccooni/sowhat-task-worker@sha256:5984d64570ba051e26e0794ffdbb84219c49ca3b5d495b4faa8d61a94325e1b6
+docker.io/iraccooni/sowhat-task-worker:0.3.22
+docker.io/iraccooni/sowhat-task-worker@sha256:b08747b80df79b58942afc1f007436fd4ac6aa75b2127eca35512464fc19133f
 ```
 
 Use the digest form. There is deliberately no `latest` tag. Versions `0.2.0` through `0.3.18` are
@@ -52,12 +52,12 @@ Ubuntu 24.04 `amd64` host with `sudo` access.
 ### 1. Download the setup scripts
 
 ```bash
-git clone --branch v0.3.21 --depth 1 \
+git clone --branch v0.3.22 --depth 1 \
   https://github.com/IRaccoonI/sowhat-task-worker.git
 cd sowhat-task-worker
 ```
 
-Tag `v0.3.21` pins the scripts, AppArmor profiles and Compose file used by worker image `0.3.21`.
+Tag `v0.3.22` pins the scripts, AppArmor profiles and Compose file used by worker image `0.3.22`.
 No access to the private sowhat product repository is required.
 
 ### 2. Create the protected configuration
@@ -217,7 +217,7 @@ Docker Compose directly after the one-time repository-based host setup, save the
 ```yaml
 name: sowhat-task-worker
 
-x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:5984d64570ba051e26e0794ffdbb84219c49ca3b5d495b4faa8d61a94325e1b6
+x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:b08747b80df79b58942afc1f007436fd4ac6aa75b2127eca35512464fc19133f
 
 x-logging: &default-logging
   driver: json-file
@@ -272,7 +272,7 @@ services:
       TASK_WORKER_PROCESS_MODE: coordinator
       TASK_WORKER_REGISTRATION_TOKEN: ${TASK_WORKER_REGISTRATION_TOKEN:?TASK_WORKER_REGISTRATION_TOKEN is required}
       TASK_WORKER_SITE_URL: ${TASK_WORKER_SITE_URL:?TASK_WORKER_SITE_URL is required}
-      TASK_WORKER_VERSION: 0.3.21
+      TASK_WORKER_VERSION: 0.3.22
       http_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       https_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       no_proxy: 127.0.0.1,localhost,::1
