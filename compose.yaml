@@ -1,6 +1,6 @@
 name: sowhat-task-worker
 
-x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:2fd207976b2eda599daa79386928aea020794a47e6f3d40692eaed549beaf04b
+x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:3c108106c598dd9e1782c4a23b3445187c4f87fd249a9a84281538772e1cac2d
 
 x-logging: &default-logging
   driver: json-file
@@ -40,7 +40,7 @@ services:
     environment:
       CODEX_HOME: /codex-auth
       DOCKER_HOST: unix:///run/docker.sock
-      EPIC_AGENT_CODEX_MODEL: ${EPIC_AGENT_CODEX_MODEL:-gpt-5.6-codex}
+      EPIC_AGENT_CODEX_MODEL: ${EPIC_AGENT_CODEX_MODEL:-gpt-5.6-sol}
       EPIC_AGENT_CODEX_TIMEOUT_MS: ${EPIC_AGENT_CODEX_TIMEOUT_MS:-600000}
       EPIC_AGENT_CONTAINER_TTL_MS: ${EPIC_AGENT_CONTAINER_TTL_MS:-3600000}
       EPIC_AGENT_ENABLED: ${EPIC_AGENT_ENABLED:-false}
@@ -59,7 +59,7 @@ services:
       TASK_WORKER_PROCESS_MODE: coordinator
       TASK_WORKER_REGISTRATION_TOKEN: ${TASK_WORKER_REGISTRATION_TOKEN:?TASK_WORKER_REGISTRATION_TOKEN is required}
       TASK_WORKER_SITE_URL: ${TASK_WORKER_SITE_URL:?TASK_WORKER_SITE_URL is required}
-      TASK_WORKER_VERSION: 0.4.0
+      TASK_WORKER_VERSION: 0.4.1
       http_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       https_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       no_proxy: 127.0.0.1,localhost,::1

@@ -8,15 +8,16 @@ GitHub token. Codex uses one device login stored in a private Docker volume.
 Published `linux/amd64` image:
 
 ```text
-docker.io/iraccooni/sowhat-task-worker:0.4.0
-docker.io/iraccooni/sowhat-task-worker@sha256:2fd207976b2eda599daa79386928aea020794a47e6f3d40692eaed549beaf04b
+docker.io/iraccooni/sowhat-task-worker:0.4.1
+docker.io/iraccooni/sowhat-task-worker@sha256:3c108106c598dd9e1782c4a23b3445187c4f87fd249a9a84281538772e1cac2d
 ```
 
 Use the digest form. There is deliberately no `latest` tag. Versions `0.2.0` through `0.3.22` are
 superseded.
 
-Version `0.4.0` adds the optional read-only Live Epic Agent planning capability. It never records
-audio, changes repositories or starts task implementation. The capability is disabled by default
+Version `0.4.1` adds the optional read-only Live Epic Agent planning capability with GPT-5.6 Sol as
+the default planning model. It never records audio, changes repositories or starts task
+implementation. The capability is disabled by default
 and also requires the sowhat server global flag plus an explicit per-space manager opt-in.
 
 Before every claim and again before every task child, the coordinator requires at least 32 GiB and
@@ -56,12 +57,12 @@ Ubuntu 24.04 `amd64` host with `sudo` access.
 ### 1. Download the setup scripts
 
 ```bash
-git clone --branch v0.4.0 --depth 1 \
+git clone --branch v0.4.1 --depth 1 \
   https://github.com/IRaccoonI/sowhat-task-worker.git
 cd sowhat-task-worker
 ```
 
-Tag `v0.4.0` pins the scripts, AppArmor profiles and Compose file used by worker image `0.4.0`.
+Tag `v0.4.1` pins the scripts, AppArmor profiles and Compose file used by worker image `0.4.1`.
 No access to the private sowhat product repository is required.
 
 ### 2. Create the protected configuration
@@ -85,7 +86,7 @@ TASK_WORKER_DIAGNOSTICS_INTERVAL_MS=5000
 TASK_WORKER_RETAIN_FAILURE_DIAGNOSTICS=false
 TASK_WORKER_HTTP_PROXY=
 EPIC_AGENT_ENABLED=false
-EPIC_AGENT_CODEX_MODEL=gpt-5.6-codex
+EPIC_AGENT_CODEX_MODEL=gpt-5.6-sol
 EPIC_AGENT_CODEX_TIMEOUT_MS=600000
 EPIC_AGENT_CONTAINER_TTL_MS=3600000
 ```
@@ -230,7 +231,7 @@ Docker Compose directly after the one-time repository-based host setup, save the
 ```yaml
 name: sowhat-task-worker
 
-x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:2fd207976b2eda599daa79386928aea020794a47e6f3d40692eaed549beaf04b
+x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:3c108106c598dd9e1782c4a23b3445187c4f87fd249a9a84281538772e1cac2d
 
 x-logging: &default-logging
   driver: json-file
@@ -270,7 +271,7 @@ services:
     environment:
       CODEX_HOME: /codex-auth
       DOCKER_HOST: unix:///run/docker.sock
-      EPIC_AGENT_CODEX_MODEL: ${EPIC_AGENT_CODEX_MODEL:-gpt-5.6-codex}
+      EPIC_AGENT_CODEX_MODEL: ${EPIC_AGENT_CODEX_MODEL:-gpt-5.6-sol}
       EPIC_AGENT_CODEX_TIMEOUT_MS: ${EPIC_AGENT_CODEX_TIMEOUT_MS:-600000}
       EPIC_AGENT_CONTAINER_TTL_MS: ${EPIC_AGENT_CONTAINER_TTL_MS:-3600000}
       EPIC_AGENT_ENABLED: ${EPIC_AGENT_ENABLED:-false}
@@ -289,7 +290,7 @@ services:
       TASK_WORKER_PROCESS_MODE: coordinator
       TASK_WORKER_REGISTRATION_TOKEN: ${TASK_WORKER_REGISTRATION_TOKEN:?TASK_WORKER_REGISTRATION_TOKEN is required}
       TASK_WORKER_SITE_URL: ${TASK_WORKER_SITE_URL:?TASK_WORKER_SITE_URL is required}
-      TASK_WORKER_VERSION: 0.4.0
+      TASK_WORKER_VERSION: 0.4.1
       http_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       https_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       no_proxy: 127.0.0.1,localhost,::1
