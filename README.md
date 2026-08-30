@@ -8,15 +8,16 @@ GitHub token. Codex uses one device login stored in a private Docker volume.
 Published `linux/amd64` image:
 
 ```text
-docker.io/iraccooni/sowhat-task-worker:0.4.1
-docker.io/iraccooni/sowhat-task-worker@sha256:3c108106c598dd9e1782c4a23b3445187c4f87fd249a9a84281538772e1cac2d
+docker.io/iraccooni/sowhat-task-worker:0.4.2
+docker.io/iraccooni/sowhat-task-worker@sha256:27da13d93942926b037da94c6d7ff296e2a72a4cd40bb0938053ccf5e4b35ccb
 ```
 
 Use the digest form. There is deliberately no `latest` tag. Versions `0.2.0` through `0.3.22` are
 superseded.
 
-Version `0.4.1` adds the optional read-only Live Epic Agent planning capability with GPT-5.6 Sol as
-the default planning model. It never records audio, changes repositories or starts task
+Version `0.4.2` keeps the optional read-only Live Epic Agent planning capability with GPT-5.6 Sol
+as the default planning model and initializes every isolated session volume for the non-root
+runner before repository preparation. It never records audio, changes repositories or starts task
 implementation. The capability is disabled by default
 and also requires the sowhat server global flag plus an explicit per-space manager opt-in.
 
@@ -57,12 +58,12 @@ Ubuntu 24.04 `amd64` host with `sudo` access.
 ### 1. Download the setup scripts
 
 ```bash
-git clone --branch v0.4.1 --depth 1 \
+git clone --branch v0.4.2 --depth 1 \
   https://github.com/IRaccoonI/sowhat-task-worker.git
 cd sowhat-task-worker
 ```
 
-Tag `v0.4.1` pins the scripts, AppArmor profiles and Compose file used by worker image `0.4.1`.
+Tag `v0.4.2` pins the scripts, AppArmor profiles and Compose file used by worker image `0.4.2`.
 No access to the private sowhat product repository is required.
 
 ### 2. Create the protected configuration
@@ -231,7 +232,7 @@ Docker Compose directly after the one-time repository-based host setup, save the
 ```yaml
 name: sowhat-task-worker
 
-x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:3c108106c598dd9e1782c4a23b3445187c4f87fd249a9a84281538772e1cac2d
+x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:27da13d93942926b037da94c6d7ff296e2a72a4cd40bb0938053ccf5e4b35ccb
 
 x-logging: &default-logging
   driver: json-file
@@ -290,7 +291,7 @@ services:
       TASK_WORKER_PROCESS_MODE: coordinator
       TASK_WORKER_REGISTRATION_TOKEN: ${TASK_WORKER_REGISTRATION_TOKEN:?TASK_WORKER_REGISTRATION_TOKEN is required}
       TASK_WORKER_SITE_URL: ${TASK_WORKER_SITE_URL:?TASK_WORKER_SITE_URL is required}
-      TASK_WORKER_VERSION: 0.4.1
+      TASK_WORKER_VERSION: 0.4.2
       http_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       https_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       no_proxy: 127.0.0.1,localhost,::1
