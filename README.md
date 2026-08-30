@@ -8,20 +8,21 @@ GitHub token. Codex uses one device login stored in a private Docker volume.
 Published `linux/amd64` image:
 
 ```text
-docker.io/iraccooni/sowhat-task-worker:0.4.5
-docker.io/iraccooni/sowhat-task-worker@sha256:27fecf57c7574d7597c07d1783036d0fde7fd3bb186a477838210a17eb8c419d
+docker.io/iraccooni/sowhat-task-worker:0.4.6
+docker.io/iraccooni/sowhat-task-worker@sha256:f7d6c82357479b557094360c9cf65696f47d87d9bd9a29234074c428809c010f
 ```
 
 Use the digest form. There is deliberately no `latest` tag. Versions `0.2.0` through `0.3.22` are
 superseded.
 
-Version `0.4.5` keeps the optional read-only Live Epic Agent planning capability with GPT-5.6 Sol
+Version `0.4.6` keeps the optional read-only Live Epic Agent planning capability with GPT-5.6 Sol
 as the default planning model, initializes every isolated session volume for the non-root runner,
 lets Codex maintain its private auth state while repositories stay read-only, and emits a
 bounded Structured Outputs schema accepted by the model API. The model emits only independent
 progress and repository-warning canvas blocks; the server deterministically renders summaries,
-phases, proposed tasks and polls. It never records audio, changes repositories or starts task
-implementation. The capability is disabled by default
+phases, proposed tasks and polls. The coordinator also passes the validated planning request to
+the isolated child using the child's exact wire contract. It never records audio, changes
+repositories or starts task implementation. The capability is disabled by default
 and also requires the sowhat server global flag plus an explicit per-space manager opt-in.
 
 Before every claim and again before every task child, the coordinator requires at least 32 GiB and
@@ -61,12 +62,12 @@ Ubuntu 24.04 `amd64` host with `sudo` access.
 ### 1. Download the setup scripts
 
 ```bash
-git clone --branch v0.4.5 --depth 1 \
+git clone --branch v0.4.6 --depth 1 \
   https://github.com/IRaccoonI/sowhat-task-worker.git
 cd sowhat-task-worker
 ```
 
-Tag `v0.4.5` pins the scripts, AppArmor profiles and Compose file used by worker image `0.4.5`.
+Tag `v0.4.6` pins the scripts, AppArmor profiles and Compose file used by worker image `0.4.6`.
 No access to the private sowhat product repository is required.
 
 ### 2. Create the protected configuration
@@ -235,7 +236,7 @@ Docker Compose directly after the one-time repository-based host setup, save the
 ```yaml
 name: sowhat-task-worker
 
-x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:27fecf57c7574d7597c07d1783036d0fde7fd3bb186a477838210a17eb8c419d
+x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:f7d6c82357479b557094360c9cf65696f47d87d9bd9a29234074c428809c010f
 
 x-logging: &default-logging
   driver: json-file
@@ -294,7 +295,7 @@ services:
       TASK_WORKER_PROCESS_MODE: coordinator
       TASK_WORKER_REGISTRATION_TOKEN: ${TASK_WORKER_REGISTRATION_TOKEN:?TASK_WORKER_REGISTRATION_TOKEN is required}
       TASK_WORKER_SITE_URL: ${TASK_WORKER_SITE_URL:?TASK_WORKER_SITE_URL is required}
-      TASK_WORKER_VERSION: 0.4.5
+      TASK_WORKER_VERSION: 0.4.6
       http_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       https_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       no_proxy: 127.0.0.1,localhost,::1
