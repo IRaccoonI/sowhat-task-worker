@@ -8,12 +8,16 @@ GitHub token. Codex uses one device login stored in a private Docker volume.
 Published `linux/amd64` image:
 
 ```text
-docker.io/iraccooni/sowhat-task-worker:0.3.22
-docker.io/iraccooni/sowhat-task-worker@sha256:b08747b80df79b58942afc1f007436fd4ac6aa75b2127eca35512464fc19133f
+docker.io/iraccooni/sowhat-task-worker:0.4.0
+docker.io/iraccooni/sowhat-task-worker@sha256:2fd207976b2eda599daa79386928aea020794a47e6f3d40692eaed549beaf04b
 ```
 
-Use the digest form. There is deliberately no `latest` tag. Versions `0.2.0` through `0.3.18` are
+Use the digest form. There is deliberately no `latest` tag. Versions `0.2.0` through `0.3.22` are
 superseded.
+
+Version `0.4.0` adds the optional read-only Live Epic Agent planning capability. It never records
+audio, changes repositories or starts task implementation. The capability is disabled by default
+and also requires the sowhat server global flag plus an explicit per-space manager opt-in.
 
 Before every claim and again before every task child, the coordinator requires at least 32 GiB and
 10% free on its backing filesystem. It waits without claiming work when either reserve is missing.
@@ -52,12 +56,12 @@ Ubuntu 24.04 `amd64` host with `sudo` access.
 ### 1. Download the setup scripts
 
 ```bash
-git clone --branch v0.3.22 --depth 1 \
+git clone --branch v0.4.0 --depth 1 \
   https://github.com/IRaccoonI/sowhat-task-worker.git
 cd sowhat-task-worker
 ```
 
-Tag `v0.3.22` pins the scripts, AppArmor profiles and Compose file used by worker image `0.3.22`.
+Tag `v0.4.0` pins the scripts, AppArmor profiles and Compose file used by worker image `0.4.0`.
 No access to the private sowhat product repository is required.
 
 ### 2. Create the protected configuration
@@ -80,6 +84,10 @@ LOG_LEVEL=debug
 TASK_WORKER_DIAGNOSTICS_INTERVAL_MS=5000
 TASK_WORKER_RETAIN_FAILURE_DIAGNOSTICS=false
 TASK_WORKER_HTTP_PROXY=
+EPIC_AGENT_ENABLED=false
+EPIC_AGENT_CODEX_MODEL=gpt-5.6-codex
+EPIC_AGENT_CODEX_TIMEOUT_MS=600000
+EPIC_AGENT_CONTAINER_TTL_MS=3600000
 ```
 
 - `TASK_WORKER_SITE_URL` is the public HTTPS origin shown in the browser address bar, without a
@@ -110,6 +118,11 @@ TASK_WORKER_HTTP_PROXY=
   login and model requests, GitHub clone/API/push traffic, and trusted preparation commands.
   Percent-encode the username and password before putting them in the URL. Paths, query strings,
   fragments and non-HTTP proxy protocols are rejected.
+- `EPIC_AGENT_ENABLED=false` is the safe default. Change it to `true` only after the sowhat server
+  global flag is enabled and a space manager explicitly enables Live Epic Agent for that space.
+  `EPIC_AGENT_CODEX_MODEL`, `EPIC_AGENT_CODEX_TIMEOUT_MS` and `EPIC_AGENT_CONTAINER_TTL_MS` bound
+  the separate read-only planning container. This container can summarize transcript context,
+  answer parallel questions and propose review tasks; it cannot execute tasks or modify code.
 
 The proxy value remains in the mode-`0600` operator file and local worker containers. It is not sent
 to the sowhat server, browser, task payload, prompt, logs or offline verification commands. Docker
@@ -217,7 +230,7 @@ Docker Compose directly after the one-time repository-based host setup, save the
 ```yaml
 name: sowhat-task-worker
 
-x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:b08747b80df79b58942afc1f007436fd4ac6aa75b2127eca35512464fc19133f
+x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:2fd207976b2eda599daa79386928aea020794a47e6f3d40692eaed549beaf04b
 
 x-logging: &default-logging
   driver: json-file
@@ -257,6 +270,10 @@ services:
     environment:
       CODEX_HOME: /codex-auth
       DOCKER_HOST: unix:///run/docker.sock
+      EPIC_AGENT_CODEX_MODEL: ${EPIC_AGENT_CODEX_MODEL:-gpt-5.6-codex}
+      EPIC_AGENT_CODEX_TIMEOUT_MS: ${EPIC_AGENT_CODEX_TIMEOUT_MS:-600000}
+      EPIC_AGENT_CONTAINER_TTL_MS: ${EPIC_AGENT_CONTAINER_TTL_MS:-3600000}
+      EPIC_AGENT_ENABLED: ${EPIC_AGENT_ENABLED:-false}
       HTTP_PROXY: ${TASK_WORKER_HTTP_PROXY:-}
       HTTPS_PROXY: ${TASK_WORKER_HTTP_PROXY:-}
       LOG_LEVEL: ${LOG_LEVEL:-debug}
@@ -272,7 +289,7 @@ services:
       TASK_WORKER_PROCESS_MODE: coordinator
       TASK_WORKER_REGISTRATION_TOKEN: ${TASK_WORKER_REGISTRATION_TOKEN:?TASK_WORKER_REGISTRATION_TOKEN is required}
       TASK_WORKER_SITE_URL: ${TASK_WORKER_SITE_URL:?TASK_WORKER_SITE_URL is required}
-      TASK_WORKER_VERSION: 0.3.22
+      TASK_WORKER_VERSION: 0.4.0
       http_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       https_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       no_proxy: 127.0.0.1,localhost,::1
