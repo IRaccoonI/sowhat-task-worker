@@ -1,6 +1,6 @@
 name: sowhat-task-worker
 
-x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:44cac5c75dacc822d81f116d6db5ef9ff44452700c91d752b703f937557c920c
+x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:424bde09c0337c3933f40d09a0168dc8cf01de510fbf14f2d6039eebfd5a3358
 
 x-logging: &default-logging
   driver: json-file
@@ -14,7 +14,12 @@ services:
     pull_policy: always
     cap_add: [CHOWN]
     cap_drop: [ALL]
-    entrypoint: ["/bin/sh", "-c", "exec chown 1000:1000 /state /codex-auth /failure-diagnostics"]
+    entrypoint:
+      [
+        "/bin/sh",
+        "-c",
+        "exec chown 1000:1000 /state /codex-auth /failure-diagnostics",
+      ]
     logging: *default-logging
     mem_limit: 32m
     network_mode: none
@@ -52,6 +57,10 @@ services:
       NODE_USE_ENV_PROXY: "1"
       NO_PROXY: 127.0.0.1,localhost,::1
       TASK_WORKER_ALLOWED_REPOSITORIES: ${TASK_WORKER_ALLOWED_REPOSITORIES:?TASK_WORKER_ALLOWED_REPOSITORIES is required}
+      TASK_AGENT_ENABLED: ${TASK_AGENT_ENABLED:-false}
+      TASK_AGENT_CODEX_MODELS: ${TASK_AGENT_CODEX_MODELS:-gpt-5.6-sol}
+      TASK_AGENT_CODEX_TIMEOUT_MS: ${TASK_AGENT_CODEX_TIMEOUT_MS:-900000}
+      TASK_AGENT_RUNTIME_PROFILES_JSON: ${TASK_AGENT_RUNTIME_PROFILES_JSON:-}
       TASK_WORKER_EXECUTION_IMAGE: *task-worker-image
       TASK_WORKER_RETAIN_FAILURE_DIAGNOSTICS: ${TASK_WORKER_RETAIN_FAILURE_DIAGNOSTICS:-false}
       TASK_WORKER_HTTP_PROXY: ${TASK_WORKER_HTTP_PROXY:-}
@@ -59,7 +68,7 @@ services:
       TASK_WORKER_PROCESS_MODE: coordinator
       TASK_WORKER_REGISTRATION_TOKEN: ${TASK_WORKER_REGISTRATION_TOKEN:?TASK_WORKER_REGISTRATION_TOKEN is required}
       TASK_WORKER_SITE_URL: ${TASK_WORKER_SITE_URL:?TASK_WORKER_SITE_URL is required}
-      TASK_WORKER_VERSION: 0.4.14
+      TASK_WORKER_VERSION: 0.4.15
       http_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       https_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       no_proxy: 127.0.0.1,localhost,::1

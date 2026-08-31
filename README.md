@@ -1,21 +1,29 @@
 # sowhat task worker
 
-The task worker connects to sowhat over outbound HTTPS and starts one fresh, isolated container for
-each accepted automation task. It opens no inbound port. The sowhat server supplies the model,
-timeouts, approved preparation and verification commands, and one short-lived repository-specific
-GitHub token. Codex uses one device login stored in a private Docker volume.
+The task worker connects to sowhat over outbound HTTPS and starts fresh isolated containers for
+accepted automation tasks, Live Epic planning and explicit read-only task reports. It opens no
+inbound port. The sowhat server supplies only validated work requests and short-lived,
+repository-specific credentials. Codex uses one device login stored in a private Docker volume.
 
 Published `linux/amd64` image:
 
 ```text
-docker.io/iraccooni/sowhat-task-worker:0.4.14
-docker.io/iraccooni/sowhat-task-worker@sha256:44cac5c75dacc822d81f116d6db5ef9ff44452700c91d752b703f937557c920c
+docker.io/iraccooni/sowhat-task-worker:0.4.15
+docker.io/iraccooni/sowhat-task-worker@sha256:424bde09c0337c3933f40d09a0168dc8cf01de510fbf14f2d6039eebfd5a3358
 ```
 
 Use the digest form. There is deliberately no `latest` tag. Versions `0.2.0` through `0.3.22` are
 superseded.
 
-Version `0.4.14` keeps the optional read-only Live Epic Agent planning capability with GPT-5.6 Sol
+Version `0.4.15` adds the optional per-card read-only Task Agent. A user may select this worker,
+`gpt-5.6-sol`, reasoning depth, one operator-owned runtime profile and zero or more explicitly
+connected repositories. Every repository is checked out at the server-snapshotted SHA, credentials
+are removed before Codex starts, and the workspace is mounted read-only. The child runs with
+approval disabled and a read-only Codex sandbox. Its result is a report—not a patch—and exact code
+claims are accepted only for tracked regular files with valid line bounds. Lease loss, restart and
+timeout paths are fenced and retried without leaving a run permanently active.
+
+The release retains the optional read-only Live Epic Agent planning capability with GPT-5.6 Sol
 as the default planning model and makes its provisional task pool cumulative. Each turn returns the
 complete current pool of source-backed task candidates, merges duplicates and may leave acceptance
 criteria visibly incomplete while a thought is still forming. After a member starts an AI epic in a
@@ -73,12 +81,12 @@ Ubuntu 24.04 `amd64` host with `sudo` access.
 ### 1. Download the setup scripts
 
 ```bash
-git clone --branch v0.4.14 --depth 1 \
+git clone --branch v0.4.15 --depth 1 \
   https://github.com/IRaccoonI/sowhat-task-worker.git
 cd sowhat-task-worker
 ```
 
-Tag `v0.4.14` pins the scripts, AppArmor profiles and Compose file used by worker image `0.4.14`.
+Tag `v0.4.15` pins the scripts, AppArmor profiles and Compose file used by worker image `0.4.15`.
 No access to the private sowhat product repository is required.
 
 ### 2. Create the protected configuration
@@ -90,8 +98,8 @@ chmod 0600 ~/.config/sowhat/task-worker.env
 nano ~/.config/sowhat/task-worker.env
 ```
 
-The file contains three required operator-owned values, two safe diagnostic controls and one
-optional proxy setting:
+The file contains three required operator-owned values plus safe diagnostic, proxy, Task Agent and
+Epic Agent controls:
 
 ```dotenv
 TASK_WORKER_SITE_URL=https://sowhat-ai.com
@@ -101,6 +109,10 @@ LOG_LEVEL=debug
 TASK_WORKER_DIAGNOSTICS_INTERVAL_MS=5000
 TASK_WORKER_RETAIN_FAILURE_DIAGNOSTICS=false
 TASK_WORKER_HTTP_PROXY=
+TASK_AGENT_ENABLED=false
+TASK_AGENT_CODEX_MODELS=gpt-5.6-sol
+TASK_AGENT_CODEX_TIMEOUT_MS=900000
+TASK_AGENT_RUNTIME_PROFILES_JSON={"sowhat-default":{"name":"Sowhat read-only","description":"Isolated exact-SHA repository analysis"}}
 EPIC_AGENT_ENABLED=false
 EPIC_AGENT_CODEX_MODEL=gpt-5.6-sol
 EPIC_AGENT_CODEX_TIMEOUT_MS=600000
@@ -135,6 +147,12 @@ EPIC_AGENT_CONTAINER_TTL_MS=3600000
   login and model requests, GitHub clone/API/push traffic, and trusted preparation commands.
   Percent-encode the username and password before putting them in the URL. Paths, query strings,
   fragments and non-HTTP proxy protocols are rejected.
+- `TASK_AGENT_ENABLED=false` is the safe operator default. Change it to `true` only after the
+  sowhat server enables Task Agent. `TASK_AGENT_CODEX_MODELS` is the exact local model allowlist;
+  `TASK_AGENT_CODEX_TIMEOUT_MS` is the per-run bound. `TASK_AGENT_RUNTIME_PROFILES_JSON` maps stable
+  IDs shown in the browser to operator-reviewed runtime definitions. Omitting `image` uses this
+  exact pinned worker image; a custom image must be immutable and package the same task-runner
+  entrypoints. These profiles never grant repository write access.
 - `EPIC_AGENT_ENABLED=false` is the safe default. Change it to `true` only after the sowhat server
   global flag is enabled and a space manager explicitly enables Live Epic Agent for that space.
   `EPIC_AGENT_CODEX_MODEL`, `EPIC_AGENT_CODEX_TIMEOUT_MS` and `EPIC_AGENT_CONTAINER_TTL_MS` bound
@@ -146,8 +164,9 @@ to the sowhat server, browser, task payload, prompt, logs or offline verificatio
 image pulls are performed by the separate rootless Docker daemon; if Docker Hub is also blocked,
 configure the same proxy separately for that user's rootless Docker service before `bootstrap`.
 
-Never add a GitHub token, `CODEX_API_KEY`, Codex `auth.json`, model name, task commands or task
-budgets to this file. Those values either remain server-owned or are issued only for one task.
+Never add a GitHub token, `CODEX_API_KEY`, Codex `auth.json`, arbitrary task commands or task budgets
+to this file. Model names may appear only in the explicit reviewed allowlists above; credentials
+remain server-owned or are issued only for one task.
 
 ### 3. Run the one-time host setup
 
@@ -207,7 +226,9 @@ scripts/worker.sh logs
 `status` should show `sowhat-task-worker` as running and healthy. `logs` follows the newest 200
 metadata-only log lines; press `Ctrl+C` to stop following logs without stopping the worker.
 
-The worker can remain healthy and idle when automation is disabled. Before it can receive work, the
+The worker can remain healthy and idle when automation is disabled. With Task Agent enabled on the
+server and worker, an accepted board card can explicitly request a read-only report without
+enabling the separate automation policy. Before writable automation can receive work, the
 sowhat server operator must configure an exact execution profile for the allowed repository and
 enable global task automation. A space manager must then enable its policy in **Space settings →
 Automation**. Start with pull-request delivery and a disposable accepted card.
@@ -247,7 +268,7 @@ Docker Compose directly after the one-time repository-based host setup, save the
 ```yaml
 name: sowhat-task-worker
 
-x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:44cac5c75dacc822d81f116d6db5ef9ff44452700c91d752b703f937557c920c
+x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:424bde09c0337c3933f40d09a0168dc8cf01de510fbf14f2d6039eebfd5a3358
 
 x-logging: &default-logging
   driver: json-file
@@ -261,7 +282,12 @@ services:
     pull_policy: always
     cap_add: [CHOWN]
     cap_drop: [ALL]
-    entrypoint: ["/bin/sh", "-c", "exec chown 1000:1000 /state /codex-auth /failure-diagnostics"]
+    entrypoint:
+      [
+        "/bin/sh",
+        "-c",
+        "exec chown 1000:1000 /state /codex-auth /failure-diagnostics",
+      ]
     logging: *default-logging
     mem_limit: 32m
     network_mode: none
@@ -299,6 +325,10 @@ services:
       NODE_USE_ENV_PROXY: "1"
       NO_PROXY: 127.0.0.1,localhost,::1
       TASK_WORKER_ALLOWED_REPOSITORIES: ${TASK_WORKER_ALLOWED_REPOSITORIES:?TASK_WORKER_ALLOWED_REPOSITORIES is required}
+      TASK_AGENT_ENABLED: ${TASK_AGENT_ENABLED:-false}
+      TASK_AGENT_CODEX_MODELS: ${TASK_AGENT_CODEX_MODELS:-gpt-5.6-sol}
+      TASK_AGENT_CODEX_TIMEOUT_MS: ${TASK_AGENT_CODEX_TIMEOUT_MS:-900000}
+      TASK_AGENT_RUNTIME_PROFILES_JSON: ${TASK_AGENT_RUNTIME_PROFILES_JSON:-}
       TASK_WORKER_EXECUTION_IMAGE: *task-worker-image
       TASK_WORKER_RETAIN_FAILURE_DIAGNOSTICS: ${TASK_WORKER_RETAIN_FAILURE_DIAGNOSTICS:-false}
       TASK_WORKER_HTTP_PROXY: ${TASK_WORKER_HTTP_PROXY:-}
@@ -306,7 +336,7 @@ services:
       TASK_WORKER_PROCESS_MODE: coordinator
       TASK_WORKER_REGISTRATION_TOKEN: ${TASK_WORKER_REGISTRATION_TOKEN:?TASK_WORKER_REGISTRATION_TOKEN is required}
       TASK_WORKER_SITE_URL: ${TASK_WORKER_SITE_URL:?TASK_WORKER_SITE_URL is required}
-      TASK_WORKER_VERSION: 0.4.14
+      TASK_WORKER_VERSION: 0.4.15
       http_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       https_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       no_proxy: 127.0.0.1,localhost,::1
