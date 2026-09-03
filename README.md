@@ -8,14 +8,19 @@ repository-specific credentials. Codex uses one device login stored in a private
 Published `linux/amd64` image:
 
 ```text
-docker.io/iraccooni/sowhat-task-worker:0.4.15
-docker.io/iraccooni/sowhat-task-worker@sha256:424bde09c0337c3933f40d09a0168dc8cf01de510fbf14f2d6039eebfd5a3358
+docker.io/iraccooni/sowhat-task-worker:0.4.16
+docker.io/iraccooni/sowhat-task-worker@sha256:57fd932b8252f541bc6dd89c5b6d0058be71b97d025d4e386f380ccccaf3ded9
 ```
 
 Use the digest form. There is deliberately no `latest` tag. Versions `0.2.0` through `0.3.22` are
 superseded.
 
-Version `0.4.15` adds the optional per-card read-only Task Agent. A user may select this worker,
+Version `0.4.16` requires an explicit user-started server run before the coordinator can lease a
+task: moving or accepting a card no longer creates work. It also strengthens the implementation
+prompt so every checklist item remains an acceptance criterion regardless of its current checkbox
+state, focused regression coverage is required, tests may not be weakened and the final diff must
+be reviewed criterion by criterion. The optional per-card Task Agent remains read-only at the
+coordinator boundary. A user may select this worker,
 `gpt-5.6-sol`, reasoning depth, one operator-owned runtime profile and zero or more explicitly
 connected repositories. Every repository is checked out at the server-snapshotted SHA, credentials
 are removed before Codex starts, and the workspace is mounted read-only. The child runs with
@@ -81,12 +86,12 @@ Ubuntu 24.04 `amd64` host with `sudo` access.
 ### 1. Download the setup scripts
 
 ```bash
-git clone --branch v0.4.15 --depth 1 \
+git clone --branch v0.4.16 --depth 1 \
   https://github.com/IRaccoonI/sowhat-task-worker.git
 cd sowhat-task-worker
 ```
 
-Tag `v0.4.15` pins the scripts, AppArmor profiles and Compose file used by worker image `0.4.15`.
+Tag `v0.4.16` pins the scripts, AppArmor profiles and Compose file used by worker image `0.4.16`.
 No access to the private sowhat product repository is required.
 
 ### 2. Create the protected configuration
@@ -268,7 +273,7 @@ Docker Compose directly after the one-time repository-based host setup, save the
 ```yaml
 name: sowhat-task-worker
 
-x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:424bde09c0337c3933f40d09a0168dc8cf01de510fbf14f2d6039eebfd5a3358
+x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:57fd932b8252f541bc6dd89c5b6d0058be71b97d025d4e386f380ccccaf3ded9
 
 x-logging: &default-logging
   driver: json-file
@@ -336,7 +341,7 @@ services:
       TASK_WORKER_PROCESS_MODE: coordinator
       TASK_WORKER_REGISTRATION_TOKEN: ${TASK_WORKER_REGISTRATION_TOKEN:?TASK_WORKER_REGISTRATION_TOKEN is required}
       TASK_WORKER_SITE_URL: ${TASK_WORKER_SITE_URL:?TASK_WORKER_SITE_URL is required}
-      TASK_WORKER_VERSION: 0.4.15
+      TASK_WORKER_VERSION: 0.4.16
       http_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       https_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       no_proxy: 127.0.0.1,localhost,::1
