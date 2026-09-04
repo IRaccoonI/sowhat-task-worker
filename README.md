@@ -8,15 +8,17 @@ repository-specific credentials. Codex uses one device login stored in a private
 Published `linux/amd64` image:
 
 ```text
-docker.io/iraccooni/sowhat-task-worker:0.4.17
-docker.io/iraccooni/sowhat-task-worker@sha256:e83edd9f6ffd2becfc552a74a9f635fc8e015d267d63688880c6f7c8289f72af
+docker.io/iraccooni/sowhat-task-worker:0.4.18
+docker.io/iraccooni/sowhat-task-worker@sha256:557cd40a0e3434e6ad4a9388e84afdeef1855f54a1fbddf70a4f9bf25ec4a41b
 ```
 
-Use the digest form. There is deliberately no `latest` tag. Versions `0.2.0` through `0.3.22` are
+Use the digest form. There is deliberately no `latest` tag. Versions `0.2.0` through `0.4.17` are
 superseded.
 
-Version `0.4.17` starts the task executor by its absolute `/app` path, so a compatible repository
-development image may keep its dependency workspace as the image working directory. It also
+Version `0.4.18` forwards ordered, lease-fenced, content-free execution phases so the board can show
+progress, elapsed time and a versioned ETA range from the first steps of a run. It retains the
+absolute `/app` task-executor path, so a compatible repository development image may keep its
+dependency workspace as the image working directory. It also
 requires an explicit user-started server run before the coordinator can lease a task: moving or
 accepting a card no longer creates work. It strengthens the implementation
 prompt so every checklist item remains an acceptance criterion regardless of its current checkbox
@@ -88,12 +90,12 @@ Ubuntu 24.04 `amd64` host with `sudo` access.
 ### 1. Download the setup scripts
 
 ```bash
-git clone --branch v0.4.17 --depth 1 \
+git clone --branch v0.4.18 --depth 1 \
   https://github.com/IRaccoonI/sowhat-task-worker.git
 cd sowhat-task-worker
 ```
 
-Tag `v0.4.17` pins the scripts, AppArmor profiles and Compose file used by worker image `0.4.17`.
+Tag `v0.4.18` pins the scripts, AppArmor profiles and Compose file used by worker image `0.4.18`.
 No access to the private sowhat product repository is required.
 
 ### 2. Create the protected configuration
