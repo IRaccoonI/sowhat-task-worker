@@ -8,15 +8,17 @@ repository-specific credentials. Codex uses one device login stored in a private
 Published `linux/amd64` image:
 
 ```text
-docker.io/iraccooni/sowhat-task-worker:0.4.16
-docker.io/iraccooni/sowhat-task-worker@sha256:57fd932b8252f541bc6dd89c5b6d0058be71b97d025d4e386f380ccccaf3ded9
+docker.io/iraccooni/sowhat-task-worker:0.4.17
+docker.io/iraccooni/sowhat-task-worker@sha256:e83edd9f6ffd2becfc552a74a9f635fc8e015d267d63688880c6f7c8289f72af
 ```
 
 Use the digest form. There is deliberately no `latest` tag. Versions `0.2.0` through `0.3.22` are
 superseded.
 
-Version `0.4.16` requires an explicit user-started server run before the coordinator can lease a
-task: moving or accepting a card no longer creates work. It also strengthens the implementation
+Version `0.4.17` starts the task executor by its absolute `/app` path, so a compatible repository
+development image may keep its dependency workspace as the image working directory. It also
+requires an explicit user-started server run before the coordinator can lease a task: moving or
+accepting a card no longer creates work. It strengthens the implementation
 prompt so every checklist item remains an acceptance criterion regardless of its current checkbox
 state, focused regression coverage is required, tests may not be weakened and the final diff must
 be reviewed criterion by criterion. The optional per-card Task Agent remains read-only at the
@@ -86,12 +88,12 @@ Ubuntu 24.04 `amd64` host with `sudo` access.
 ### 1. Download the setup scripts
 
 ```bash
-git clone --branch v0.4.16 --depth 1 \
+git clone --branch v0.4.17 --depth 1 \
   https://github.com/IRaccoonI/sowhat-task-worker.git
 cd sowhat-task-worker
 ```
 
-Tag `v0.4.16` pins the scripts, AppArmor profiles and Compose file used by worker image `0.4.16`.
+Tag `v0.4.17` pins the scripts, AppArmor profiles and Compose file used by worker image `0.4.17`.
 No access to the private sowhat product repository is required.
 
 ### 2. Create the protected configuration
@@ -273,7 +275,7 @@ Docker Compose directly after the one-time repository-based host setup, save the
 ```yaml
 name: sowhat-task-worker
 
-x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:57fd932b8252f541bc6dd89c5b6d0058be71b97d025d4e386f380ccccaf3ded9
+x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:e83edd9f6ffd2becfc552a74a9f635fc8e015d267d63688880c6f7c8289f72af
 
 x-logging: &default-logging
   driver: json-file
@@ -287,12 +289,7 @@ services:
     pull_policy: always
     cap_add: [CHOWN]
     cap_drop: [ALL]
-    entrypoint:
-      [
-        "/bin/sh",
-        "-c",
-        "exec chown 1000:1000 /state /codex-auth /failure-diagnostics",
-      ]
+    entrypoint: ["/bin/sh", "-c", "exec chown 1000:1000 /state /codex-auth /failure-diagnostics"]
     logging: *default-logging
     mem_limit: 32m
     network_mode: none
@@ -341,7 +338,7 @@ services:
       TASK_WORKER_PROCESS_MODE: coordinator
       TASK_WORKER_REGISTRATION_TOKEN: ${TASK_WORKER_REGISTRATION_TOKEN:?TASK_WORKER_REGISTRATION_TOKEN is required}
       TASK_WORKER_SITE_URL: ${TASK_WORKER_SITE_URL:?TASK_WORKER_SITE_URL is required}
-      TASK_WORKER_VERSION: 0.4.16
+      TASK_WORKER_VERSION: 0.4.17
       http_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       https_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       no_proxy: 127.0.0.1,localhost,::1

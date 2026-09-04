@@ -1,6 +1,6 @@
 name: sowhat-task-worker
 
-x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:57fd932b8252f541bc6dd89c5b6d0058be71b97d025d4e386f380ccccaf3ded9
+x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:e83edd9f6ffd2becfc552a74a9f635fc8e015d267d63688880c6f7c8289f72af
 
 x-logging: &default-logging
   driver: json-file
@@ -14,12 +14,7 @@ services:
     pull_policy: always
     cap_add: [CHOWN]
     cap_drop: [ALL]
-    entrypoint:
-      [
-        "/bin/sh",
-        "-c",
-        "exec chown 1000:1000 /state /codex-auth /failure-diagnostics",
-      ]
+    entrypoint: ["/bin/sh", "-c", "exec chown 1000:1000 /state /codex-auth /failure-diagnostics"]
     logging: *default-logging
     mem_limit: 32m
     network_mode: none
@@ -68,7 +63,7 @@ services:
       TASK_WORKER_PROCESS_MODE: coordinator
       TASK_WORKER_REGISTRATION_TOKEN: ${TASK_WORKER_REGISTRATION_TOKEN:?TASK_WORKER_REGISTRATION_TOKEN is required}
       TASK_WORKER_SITE_URL: ${TASK_WORKER_SITE_URL:?TASK_WORKER_SITE_URL is required}
-      TASK_WORKER_VERSION: 0.4.16
+      TASK_WORKER_VERSION: 0.4.17
       http_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       https_proxy: ${TASK_WORKER_HTTP_PROXY:-}
       no_proxy: 127.0.0.1,localhost,::1
