@@ -7,7 +7,7 @@ may connect several personal or system-owned workers.
 
 Public setup files are published at
 [`IRaccoonI/sowhat-task-worker`](https://github.com/IRaccoonI/sowhat-task-worker). Use tag
-`v0.4.23`; the checked-in Compose file pins the matching image by immutable digest. There is no
+`v0.4.24`; the checked-in Compose file pins the matching image by immutable digest. There is no
 `latest` tag.
 
 Do not install `v0.4.20`: its launcher used the host-side subordinate GID of a rootless Docker
@@ -15,7 +15,8 @@ socket and could fail before startup. Releases from `v0.4.21` resolve the contai
 GID through the same rootless daemon before starting the worker. `v0.4.22` adds the read-only
 `preset_runtime_v1` capability used by explicitly pinned AI operation routes. `v0.4.23` keeps an
 operator-approved outbound proxy in the protected worker connection document so authenticated
-Codex traffic can cross networks that block direct access.
+Codex traffic can cross networks that block direct access. `v0.4.24` migrates already-paired
+workers to that document without requiring a new pairing code.
 
 ## Authority and privacy boundary
 
@@ -53,7 +54,7 @@ worker rejects a rootful daemon. Install Docker using the official
 ### 1. Download the immutable package
 
 ```bash
-git clone --branch v0.4.23 --depth 1 \
+git clone --branch v0.4.24 --depth 1 \
   https://github.com/IRaccoonI/sowhat-task-worker.git
 cd sowhat-task-worker
 ```

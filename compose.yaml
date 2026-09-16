@@ -1,6 +1,6 @@
 name: sowhat-task-worker
 
-x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:cfc3b89636dc61cf95915f2871352fcaa4886c9631349e8b540727373e5003bf
+x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:527242322f77ba13eab44b34c10312c9c0202dd3cf7c1d3baee23884c3c8efb1
 
 x-logging: &default-logging
   driver: json-file
@@ -58,7 +58,7 @@ services:
       TASK_WORKER_PROCESS_MODE: coordinator
       TASK_WORKER_REGISTRATION_TOKEN: ""
       TASK_WORKER_SITE_URL: https://sowhat-ai.com
-      TASK_WORKER_VERSION: 0.4.23
+      TASK_WORKER_VERSION: 0.4.24
     healthcheck:
       test:
         [
