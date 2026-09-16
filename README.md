@@ -7,12 +7,13 @@ may connect several personal or system-owned workers.
 
 Public setup files are published at
 [`IRaccoonI/sowhat-task-worker`](https://github.com/IRaccoonI/sowhat-task-worker). Use tag
-`v0.4.21`; the checked-in Compose file pins the matching image by immutable digest. There is no
+`v0.4.22`; the checked-in Compose file pins the matching image by immutable digest. There is no
 `latest` tag.
 
 Do not install `v0.4.20`: its launcher used the host-side subordinate GID of a rootless Docker
-socket and could fail before startup. `v0.4.21` resolves the container-visible socket GID through
-the same rootless daemon before starting the worker.
+socket and could fail before startup. Releases from `v0.4.21` resolve the container-visible socket
+GID through the same rootless daemon before starting the worker. `v0.4.22` adds the read-only
+`preset_runtime_v1` capability used by explicitly pinned AI operation routes.
 
 ## Authority and privacy boundary
 
@@ -21,10 +22,10 @@ run only when the worker has an active binding to that exact space and the bindi
 capability. Repository access is resolved from that authorized space/run and passed to one
 disposable child; there is no worker-global repository allowlist.
 
-The public package defaults to the read-only Task Agent and Epic Agent capabilities. Writable task
-execution and external automation stay separate, visible opt-ins in the space and retain their
-explicit start, policy, approval, repository and lease checks. Pairing a worker does not start work
-or enable automation.
+The public package defaults to the read-only Task Agent, Epic Agent and preset-runtime
+capabilities. Writable task execution and external automation stay separate, visible opt-ins in
+the space and retain their explicit start, policy, approval, repository and lease checks. Pairing a
+worker does not start work or enable automation.
 
 The worker never receives database, Redis, session, transcript, MCP, LiveKit or GitHub App
 private-key credentials. It never records audio. Short-lived repository credentials travel only in
@@ -50,7 +51,7 @@ worker rejects a rootful daemon. Install Docker using the official
 ### 1. Download the immutable package
 
 ```bash
-git clone --branch v0.4.21 --depth 1 \
+git clone --branch v0.4.22 --depth 1 \
   https://github.com/IRaccoonI/sowhat-task-worker.git
 cd sowhat-task-worker
 ```
@@ -106,9 +107,9 @@ scripts/worker.sh status
 ```
 
 Return to **Space settings → Workers**. The owned worker appears after registration. Connect it to
-the space and review the enabled capabilities. Read-only Task Agent/Epic Agent are the safe default;
-do not enable a writable capability unless the space's execution policy has been separately
-reviewed.
+the space and review the enabled capabilities. Read-only Task Agent, Epic Agent and preset runtime
+are the safe default; do not enable a writable capability unless the space's execution policy has
+been separately reviewed.
 
 ## Daily operation
 
