@@ -7,7 +7,7 @@ may connect several personal or system-owned workers.
 
 Public setup files are published at
 [`IRaccoonI/sowhat-task-worker`](https://github.com/IRaccoonI/sowhat-task-worker). Use tag
-`v0.4.27`; the checked-in Compose file pins the matching image by immutable digest. There is no
+`v0.4.28`; the checked-in Compose file pins the matching image by immutable digest. There is no
 `latest` tag.
 
 Do not install `v0.4.20`: its launcher used the host-side subordinate GID of a rootless Docker
@@ -22,6 +22,8 @@ deployment files. `v0.4.26` adds a complete capability inventory and claim-level
 self-review before a repository feature map is returned. `v0.4.27` makes application-level claims
 atomic, treats material contract constraints, workload hardening and separately delivered artifacts
 as map coverage, and requires evidence to cite the exact implementing helper or branch.
+`v0.4.28` evaluates overlapping access policies together and requires application evidence to
+describe only behavior contained in its exact cited range.
 
 ## Authority and privacy boundary
 
@@ -59,7 +61,7 @@ worker rejects a rootful daemon. Install Docker using the official
 ### 1. Download the immutable package
 
 ```bash
-git clone --branch v0.4.27 --depth 1 \
+git clone --branch v0.4.28 --depth 1 \
   https://github.com/IRaccoonI/sowhat-task-worker.git
 cd sowhat-task-worker
 ```
