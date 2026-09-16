@@ -6,7 +6,7 @@ compose_file="${repo_root}/compose.yaml"
 docker_socket="/run/user/$(id -u)/docker.sock"
 
 usage() {
-  echo "Usage: $0 pair <https://sowhat-site> | login | start | stop | status | logs" >&2
+  echo "Usage: $0 pair <https://sowhat-site> | proxy | login | start | stop | status | logs" >&2
 }
 
 action="${1:-}"
@@ -17,7 +17,7 @@ case "${action}" in
       exit 2
     fi
     ;;
-  login | start | stop | status | logs)
+  proxy | login | start | stop | status | logs)
     if [[ $# -ne 1 ]]; then
       usage
       exit 2
@@ -41,7 +41,7 @@ compose=(docker compose -f "${compose_file}")
 
 prepare_runtime() {
   case "${action}" in
-    pair | login | start) "${compose[@]}" pull ;;
+    pair | proxy | login | start) "${compose[@]}" pull ;;
   esac
 
   mapfile -t configured_images < <("${compose[@]}" config --images | sort -u)
@@ -87,6 +87,18 @@ case "${action}" in
     printf '%s\n' "${pairing_code}" | "${compose[@]}" run --rm --no-deps -T \
       --entrypoint node task-worker dist/pair.js "${site_url}"
     unset pairing_code
+    ;;
+  proxy)
+    if [[ -t 0 ]]; then
+      read -r -s -p "Paste the HTTP(S) proxy URL, or leave blank to clear it: " worker_proxy
+      echo >&2
+    else
+      IFS= read -r worker_proxy
+    fi
+    "${compose[@]}" run --rm task-worker-state-init
+    printf '%s\n' "${worker_proxy}" | "${compose[@]}" run --rm --no-deps -T \
+      --entrypoint node task-worker dist/proxy.js
+    unset worker_proxy
     ;;
   login)
     "${compose[@]}" run --rm task-worker-state-init
