@@ -1,6 +1,6 @@
 name: sowhat-task-worker
 
-x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:557cd40a0e3434e6ad4a9388e84afdeef1855f54a1fbddf70a4f9bf25ec4a41b
+x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:6ad0959e29884feccf67e75c76da8347f39eff1bb755eaeb27d26d1b2d44fecf
 
 x-logging: &default-logging
   driver: json-file
@@ -40,33 +40,25 @@ services:
     environment:
       CODEX_HOME: /codex-auth
       DOCKER_HOST: unix:///run/docker.sock
-      EPIC_AGENT_CODEX_MODEL: ${EPIC_AGENT_CODEX_MODEL:-gpt-5.6-sol}
-      EPIC_AGENT_CODEX_TIMEOUT_MS: ${EPIC_AGENT_CODEX_TIMEOUT_MS:-600000}
-      EPIC_AGENT_CONTAINER_TTL_MS: ${EPIC_AGENT_CONTAINER_TTL_MS:-3600000}
-      EPIC_AGENT_ENABLED: ${EPIC_AGENT_ENABLED:-false}
-      HTTP_PROXY: ${TASK_WORKER_HTTP_PROXY:-}
-      HTTPS_PROXY: ${TASK_WORKER_HTTP_PROXY:-}
-      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      EPIC_AGENT_CODEX_MODEL: gpt-5.6-sol
+      EPIC_AGENT_CODEX_TIMEOUT_MS: "600000"
+      EPIC_AGENT_CONTAINER_TTL_MS: "3600000"
+      EPIC_AGENT_ENABLED: "true"
+      LOG_LEVEL: info
       NODE_ENV: production
       NODE_OPTIONS: --enable-source-maps --max-old-space-size=256
-      NODE_USE_ENV_PROXY: "1"
-      NO_PROXY: 127.0.0.1,localhost,::1
-      TASK_WORKER_ALLOWED_REPOSITORIES: ${TASK_WORKER_ALLOWED_REPOSITORIES:?TASK_WORKER_ALLOWED_REPOSITORIES is required}
-      TASK_AGENT_ENABLED: ${TASK_AGENT_ENABLED:-false}
-      TASK_AGENT_CODEX_MODELS: ${TASK_AGENT_CODEX_MODELS:-gpt-5.6-sol}
-      TASK_AGENT_CODEX_TIMEOUT_MS: ${TASK_AGENT_CODEX_TIMEOUT_MS:-900000}
-      TASK_AGENT_RUNTIME_PROFILES_JSON: ${TASK_AGENT_RUNTIME_PROFILES_JSON:-}
+      TASK_WORKER_ALLOWED_REPOSITORIES: ""
+      TASK_AGENT_ENABLED: "true"
+      TASK_AGENT_CODEX_MODELS: gpt-5.6-sol
+      TASK_AGENT_CODEX_TIMEOUT_MS: "900000"
+      TASK_AGENT_RUNTIME_PROFILES_JSON: '{"sowhat-default":{"name":"Sowhat read-only","description":"Isolated exact-SHA repository analysis"}}'
       TASK_WORKER_EXECUTION_IMAGE: *task-worker-image
-      TASK_WORKER_RETAIN_FAILURE_DIAGNOSTICS: ${TASK_WORKER_RETAIN_FAILURE_DIAGNOSTICS:-false}
-      TASK_WORKER_HTTP_PROXY: ${TASK_WORKER_HTTP_PROXY:-}
-      TASK_WORKER_DIAGNOSTICS_INTERVAL_MS: ${TASK_WORKER_DIAGNOSTICS_INTERVAL_MS:-5000}
+      TASK_WORKER_RETAIN_FAILURE_DIAGNOSTICS: "false"
+      TASK_WORKER_DIAGNOSTICS_INTERVAL_MS: "5000"
       TASK_WORKER_PROCESS_MODE: coordinator
-      TASK_WORKER_REGISTRATION_TOKEN: ${TASK_WORKER_REGISTRATION_TOKEN:?TASK_WORKER_REGISTRATION_TOKEN is required}
-      TASK_WORKER_SITE_URL: ${TASK_WORKER_SITE_URL:?TASK_WORKER_SITE_URL is required}
-      TASK_WORKER_VERSION: 0.4.18
-      http_proxy: ${TASK_WORKER_HTTP_PROXY:-}
-      https_proxy: ${TASK_WORKER_HTTP_PROXY:-}
-      no_proxy: 127.0.0.1,localhost,::1
+      TASK_WORKER_REGISTRATION_TOKEN: ""
+      TASK_WORKER_SITE_URL: https://sowhat-ai.com
+      TASK_WORKER_VERSION: 0.4.20
     healthcheck:
       test:
         [
@@ -91,7 +83,7 @@ services:
     volumes:
       - codex-auth:/codex-auth
       - failure-diagnostics:/failure-diagnostics
-      - ${TASK_WORKER_DOCKER_SOCKET_PATH:-${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is required}/docker.sock}:/run/docker.sock
+      - ${TASK_WORKER_DOCKER_SOCKET_PATH:?TASK_WORKER_DOCKER_SOCKET_PATH is required}:/run/docker.sock
       - worker-state:/state
 
 networks:

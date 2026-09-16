@@ -1,65 +1,31 @@
 # sowhat task worker
 
 The task worker connects to sowhat over outbound HTTPS and starts fresh isolated containers for
-accepted automation tasks, Live Epic planning and explicit read-only task reports. It opens no
-inbound port. The sowhat server supplies only validated work requests and short-lived,
-repository-specific credentials. Codex uses one device login stored in a private Docker volume.
+explicitly authorized work. It opens no inbound port. A person owns the worker, pairs it once, and
+may connect it to several spaces where that same account has worker-management permission. A space
+may connect several personal or system-owned workers.
 
-Published `linux/amd64` image:
+Public setup files are published at
+[`IRaccoonI/sowhat-task-worker`](https://github.com/IRaccoonI/sowhat-task-worker). Use tag
+`v0.4.20`; the checked-in Compose file pins the matching image by immutable digest. There is no
+`latest` tag.
 
-```text
-docker.io/iraccooni/sowhat-task-worker:0.4.18
-docker.io/iraccooni/sowhat-task-worker@sha256:557cd40a0e3434e6ad4a9388e84afdeef1855f54a1fbddf70a4f9bf25ec4a41b
-```
+## Authority and privacy boundary
 
-Use the digest form. There is deliberately no `latest` tag. Versions `0.2.0` through `0.4.17` are
-superseded.
+Worker authentication proves only the worker identity. It grants no space access. Sowhat leases a
+run only when the worker has an active binding to that exact space and the binding enables the exact
+capability. Repository access is resolved from that authorized space/run and passed to one
+disposable child; there is no worker-global repository allowlist.
 
-Version `0.4.18` forwards ordered, lease-fenced, content-free execution phases so the board can show
-progress, elapsed time and a versioned ETA range from the first steps of a run. It retains the
-absolute `/app` task-executor path, so a compatible repository development image may keep its
-dependency workspace as the image working directory. It also
-requires an explicit user-started server run before the coordinator can lease a task: moving or
-accepting a card no longer creates work. It strengthens the implementation
-prompt so every checklist item remains an acceptance criterion regardless of its current checkbox
-state, focused regression coverage is required, tests may not be weakened and the final diff must
-be reviewed criterion by criterion. The optional per-card Task Agent remains read-only at the
-coordinator boundary. A user may select this worker,
-`gpt-5.6-sol`, reasoning depth, one operator-owned runtime profile and zero or more explicitly
-connected repositories. Every repository is checked out at the server-snapshotted SHA, credentials
-are removed before Codex starts, and the workspace is mounted read-only. The child runs with
-approval disabled and a read-only Codex sandbox. Its result is a report—not a patch—and exact code
-claims are accepted only for tracked regular files with valid line bounds. Lease loss, restart and
-timeout paths are fenced and retried without leaving a run permanently active.
+The public package defaults to the read-only Task Agent and Epic Agent capabilities. Writable task
+execution and external automation stay separate, visible opt-ins in the space and retain their
+explicit start, policy, approval, repository and lease checks. Pairing a worker does not start work
+or enable automation.
 
-The release retains the optional read-only Live Epic Agent planning capability with GPT-5.6 Sol
-as the default planning model and makes its provisional task pool cumulative. Each turn returns the
-complete current pool of source-backed task candidates, merges duplicates and may leave acceptance
-criteria visibly incomplete while a thought is still forming. After a member starts an AI epic in a
-call, finalized speech is grouped by the server and sent to one isolated planning turn after its
-quiet window. The model must ignore unclear, unrelated, hypothetical and other-project speech
-instead of mutating the epic. It emits structured progress, summaries, phases, proposed tasks,
-polls and repository warnings; all task candidates remain proposed until explicit human review.
-The coordinator initializes every isolated session volume for the non-root
-runner, lets Codex maintain its private auth state while repositories stay read-only, forwards only
-the explicit proxy allowlist and post-validates the compact transport schema. Private checkout
-uses the packaged shell credential helper instead of an executable temporary file, retaining the
-AppArmor boundary while keeping the token out of Git arguments. Structured output now restricts
-task changes to real task IDs already linked to the current epic, and requires an empty change list
-when none exist. Every relevant main turn now emits a short live note explaining what became
-clearer, what remains uncertain or which focused question should be answered next. Plausibly
-epic-related but vague speech asks one focused question without changing the epic; clearly
-unrelated speech still does not mutate it. It never records audio, changes repositories or starts task
-implementation. The capability is disabled by default and also requires the sowhat server global
-flag plus an explicit per-space manager opt-in.
-
-Before every claim and again before every task child, the coordinator requires at least 32 GiB and
-10% free on its backing filesystem. It waits without claiming work when either reserve is missing.
-Every task child, sandbox probe and run-scoped companion also uses bounded `json-file` rotation of
-three 10 MiB files, independently from daemon defaults.
-
-The standalone setup files are public at
-[`IRaccoonI/sowhat-task-worker`](https://github.com/IRaccoonI/sowhat-task-worker).
+The worker never receives database, Redis, session, transcript, MCP, LiveKit or GitHub App
+private-key credentials. It never records audio. Short-lived repository credentials travel only in
+the authorized run and are removed before read-only Codex starts. Codex auth stays in a private
+rootless-Docker volume and is never sent to sowhat.
 
 ## Requirements
 
@@ -67,184 +33,82 @@ The standalone setup files are public at
 - dedicated non-root operator account with `sudo` access;
 - Git;
 - official Docker Engine, Docker Compose plugin and `docker-ce-rootless-extras`;
-- server-administrator access to the sowhat API/worker environment;
+- membership and `workers.manage` in at least one sowhat space;
 - one Codex device-code login.
 
-Install missing host software by following Docker's official
-[Ubuntu installation guide](https://docs.docker.com/engine/install/ubuntu/) and
-[rootless-mode guide](https://docs.docker.com/engine/security/rootless/). Confirm the required
-commands before continuing:
+The rootless daemon must host no unrelated workloads. Never mount `/var/run/docker.sock`; the
+worker rejects a rootful daemon. Install Docker using the official
+[Ubuntu guide](https://docs.docker.com/engine/install/ubuntu/) and
+[rootless guide](https://docs.docker.com/engine/security/rootless/).
+
+## Setup
+
+### 1. Download the immutable package
 
 ```bash
-git --version
-docker --version
-docker compose version
-command -v dockerd-rootless-setuptool.sh
-```
-
-## Complete setup with the repository scripts
-
-This is the recommended path. It is written for a dedicated non-root operator account on a clean
-Ubuntu 24.04 `amd64` host with `sudo` access.
-
-### 1. Download the setup scripts
-
-```bash
-git clone --branch v0.4.18 --depth 1 \
+git clone --branch v0.4.20 --depth 1 \
   https://github.com/IRaccoonI/sowhat-task-worker.git
 cd sowhat-task-worker
 ```
 
-Tag `v0.4.18` pins the scripts, AppArmor profiles and Compose file used by worker image `0.4.18`.
 No access to the private sowhat product repository is required.
 
-### 2. Create the protected configuration
-
-```bash
-install -d -m 0700 ~/.config/sowhat
-cp .env.example ~/.config/sowhat/task-worker.env
-chmod 0600 ~/.config/sowhat/task-worker.env
-nano ~/.config/sowhat/task-worker.env
-```
-
-The file contains three required operator-owned values plus safe diagnostic, proxy, Task Agent and
-Epic Agent controls:
-
-```dotenv
-TASK_WORKER_SITE_URL=https://sowhat-ai.com
-TASK_WORKER_REGISTRATION_TOKEN=replace-with-the-production-registration-secret-at-least-32-characters
-TASK_WORKER_ALLOWED_REPOSITORIES=owner/repository
-LOG_LEVEL=debug
-TASK_WORKER_DIAGNOSTICS_INTERVAL_MS=5000
-TASK_WORKER_RETAIN_FAILURE_DIAGNOSTICS=false
-TASK_WORKER_HTTP_PROXY=
-TASK_AGENT_ENABLED=false
-TASK_AGENT_CODEX_MODELS=gpt-5.6-sol
-TASK_AGENT_CODEX_TIMEOUT_MS=900000
-TASK_AGENT_RUNTIME_PROFILES_JSON={"sowhat-default":{"name":"Sowhat read-only","description":"Isolated exact-SHA repository analysis"}}
-EPIC_AGENT_ENABLED=false
-EPIC_AGENT_CODEX_MODEL=gpt-5.6-sol
-EPIC_AGENT_CODEX_TIMEOUT_MS=600000
-EPIC_AGENT_CONTAINER_TTL_MS=3600000
-```
-
-- `TASK_WORKER_SITE_URL` is the public HTTPS origin shown in the browser address bar, without a
-  path. For the hosted product it is `https://sowhat-ai.com`.
-- `TASK_WORKER_REGISTRATION_TOKEN` is a dedicated bootstrap secret. A sowhat server administrator
-  generates it once with `openssl rand -hex 32`, stores the result as the production-worker value
-  `TASK_AUTOMATION_WORKER_REGISTRATION_TOKEN`, and gives the same value to the worker operator for
-  this file. It is not a GitHub token or an OpenAI API key. Never display it in the product UI,
-  commit it, or paste it into logs.
-- `TASK_WORKER_ALLOWED_REPOSITORIES` is the exact local allowlist. Copy the ready-made value from
-  **Space settings → Automation**, or enter the connected repository names as comma-separated
-  `owner/repository` values. Every allowed repository also needs an exact server-owned execution
-  profile.
-- `LOG_LEVEL=debug` enables content-free run diagnostics, and
-  `TASK_WORKER_DIAGNOSTICS_INTERVAL_MS=5000` records one bounded resource sample every five
-  seconds. Samples include run/attempt/phase, elapsed time, CPU, current and peak memory, memory
-  limit and PID count. They never include task text, prompts, source paths, command output,
-  credentials, tokens or proxy values. Set `LOG_LEVEL=info` later to reduce verbosity without
-  changing task behavior.
-- `TASK_WORKER_RETAIN_FAILURE_DIAGNOSTICS=false` is the safe default. Set it to `true` only while an
-  operator diagnoses a final task failure. The separate local volume then retains at most three
-  24-hour bundles containing a bounded staged diff and the already-redacted final gate diagnostic.
-  Bundles never enter sowhat, the browser, results or logs; treat the volume as private source
-  material and switch retention off after diagnosis.
-- `TASK_WORKER_HTTP_PROXY` is optional. Leave it empty for direct access. If Codex or GitHub is
-  blocked from this host, set an HTTP or HTTPS proxy origin such as
-  `http://user:password@proxy.example:8080`. It covers worker registration and claims, Codex device
-  login and model requests, GitHub clone/API/push traffic, and trusted preparation commands.
-  Percent-encode the username and password before putting them in the URL. Paths, query strings,
-  fragments and non-HTTP proxy protocols are rejected.
-- `TASK_AGENT_ENABLED=false` is the safe operator default. Change it to `true` only after the
-  sowhat server enables Task Agent. `TASK_AGENT_CODEX_MODELS` is the exact local model allowlist;
-  `TASK_AGENT_CODEX_TIMEOUT_MS` is the per-run bound. `TASK_AGENT_RUNTIME_PROFILES_JSON` maps stable
-  IDs shown in the browser to operator-reviewed runtime definitions. Omitting `image` uses this
-  exact pinned worker image; a custom image must be immutable and package the same task-runner
-  entrypoints. These profiles never grant repository write access.
-- `EPIC_AGENT_ENABLED=false` is the safe default. Change it to `true` only after the sowhat server
-  global flag is enabled and a space manager explicitly enables Live Epic Agent for that space.
-  `EPIC_AGENT_CODEX_MODEL`, `EPIC_AGENT_CODEX_TIMEOUT_MS` and `EPIC_AGENT_CONTAINER_TTL_MS` bound
-  the separate read-only planning container. This container can summarize transcript context,
-  answer parallel questions and propose review tasks; it cannot execute tasks or modify code.
-
-The proxy value remains in the mode-`0600` operator file and local worker containers. It is not sent
-to the sowhat server, browser, task payload, prompt, logs or offline verification commands. Docker
-image pulls are performed by the separate rootless Docker daemon; if Docker Hub is also blocked,
-configure the same proxy separately for that user's rootless Docker service before `bootstrap`.
-
-Never add a GitHub token, `CODEX_API_KEY`, Codex `auth.json`, arbitrary task commands or task budgets
-to this file. Model names may appear only in the explicit reviewed allowlists above; credentials
-remain server-owned or are issued only for one task.
-
-### 3. Run the one-time host setup
+### 2. Prepare the host once
 
 ```bash
 sudo scripts/setup-host.sh
 ```
 
-The script performs the host operations that a normal container cannot perform safely:
+The script installs the reviewed AppArmor profiles, enables user lingering, provisions a dedicated
+rootless Docker daemon for the invoking non-root account and verifies its socket/security mode. Run
+all remaining commands as that same account without `sudo`.
 
-- verifies Ubuntu 24.04 and that it was started with `sudo` by a non-root operator;
-- installs `uidmap` for subordinate user/group mappings;
-- installs and loads the checked-in `bwrap-userns-restrict` and `sowhat-task-runner` AppArmor
-  profiles;
-- enables user lingering so the worker survives logout and reboot;
-- installs and starts a dedicated rootless Docker daemon for the current operator account;
-- verifies that `/run/user/<uid>/docker.sock` exists and reports rootless security mode.
+### 3. Pair the worker
 
-The final line should look like:
-
-```text
-Task-worker host setup is ready for <user> (/run/user/<uid>/docker.sock).
-```
-
-Do not replace that socket with `/var/run/docker.sock`. The latter is the rootful daemon and gives a
-container root-equivalent control of the host; the worker rejects it.
-
-### 4. Start the worker and authorize Codex once
-
-Run this as the same non-root operator, without `sudo`:
+Open **Space settings → Workers**, enter a recognizable worker name and create a pairing code. The
+code expires after ten minutes and is accepted once. Then run:
 
 ```bash
-scripts/worker.sh bootstrap
+scripts/worker.sh pair 'https://sowhat-ai.com'
 ```
 
-`bootstrap` does all container-level setup in order:
+Paste the code into the hidden prompt. The code is read from standard input, never from an argument
+or environment variable. The helper writes a mode-`0600` connection document in the private
+`sowhat-task-worker-state` volume. On the first successful registration the code is consumed and
+removed from local state; only the issued worker credential remains, with only its hash stored by
+sowhat.
 
-1. selects only the current account's rootless Docker socket;
-2. resolves the rootless socket's Docker group without adding another value to the operator env;
-3. pulls the exact image digest from this page;
-4. creates and initializes the private Codex-auth and worker-state volumes;
-5. starts the coordinator;
-6. runs `codex login --device-auth` inside the coordinator;
-7. waits for you to open the displayed OpenAI URL and enter the one-time code;
-8. restarts the coordinator, checks Codex login status and prints Compose status.
+The public worker has no `.env` file. Do not create one. Site URL, registration secret, repository
+allowlist, model list, runtime profile, proxy and diagnostic toggles are not user settings. Safe
+runtime defaults live in the pinned package; exact repository scope arrives with each authorized
+run. If the host needs a network proxy, configure it for the operating system and the rootless
+Docker service instead of putting a proxy credential into sowhat state.
 
-The device login is stored in the rootless-Docker volume
-`sowhat-task-worker-codex-auth`. It survives container replacement and image upgrades and is reused
-by each disposable task container. Do not print, copy or mount its `auth.json` anywhere else.
-
-### 5. Verify the result
+### 4. Authorize Codex once
 
 ```bash
+scripts/worker.sh login
+```
+
+Open the displayed OpenAI URL and enter the one-time code. The resulting credential is stored in
+the rootless-Docker volume `sowhat-task-worker-codex-auth`. Treat it as a password: never print,
+copy, commit or mount `auth.json` elsewhere.
+
+### 5. Start and connect
+
+```bash
+scripts/worker.sh start
 scripts/worker.sh status
-scripts/worker.sh logs
 ```
 
-`status` should show `sowhat-task-worker` as running and healthy. `logs` follows the newest 200
-metadata-only log lines; press `Ctrl+C` to stop following logs without stopping the worker.
-
-The worker can remain healthy and idle when automation is disabled. With Task Agent enabled on the
-server and worker, an accepted board card can explicitly request a read-only report without
-enabling the separate automation policy. Before writable automation can receive work, the
-sowhat server operator must configure an exact execution profile for the allowed repository and
-enable global task automation. A space manager must then enable its policy in **Space settings →
-Automation**. Start with pull-request delivery and a disposable accepted card.
+Return to **Space settings → Workers**. The owned worker appears after registration. Connect it to
+the space and review the enabled capabilities. Read-only Task Agent/Epic Agent are the safe default;
+do not enable a writable capability unless the space's execution policy has been separately
+reviewed.
 
 ## Daily operation
 
-Run these commands from the cloned repository as the same non-root operator:
+Run from the cloned public package as the same non-root owner:
 
 ```bash
 # Pull the pinned image and start or update the coordinator.
@@ -253,185 +117,59 @@ scripts/worker.sh start
 # Show container and health state.
 scripts/worker.sh status
 
-# Follow the newest 200 log lines.
+# Follow the newest metadata-only log lines; Ctrl+C stops following only.
 scripts/worker.sh logs
 
-# Stop the coordinator but keep its identity and Codex login.
+# Stop the coordinator but retain pairing and Codex login.
 scripts/worker.sh stop
 ```
 
-The helper reads `~/.config/sowhat/task-worker.env` by default. To use another protected file for
-one command:
+To use the worker in another space, do not pair again. Join that space with the same sowhat account,
+obtain `workers.manage`, and connect the existing owned worker from that space's Workers settings.
 
-```bash
-SOWHAT_TASK_WORKER_ENV_FILE=/absolute/path/task-worker.env \
-  scripts/worker.sh status
-```
+To move to a different sowhat installation or owner, revoke the worker in the current UI, create a
+new pairing code under the intended account, and run `pair` again. Revocation disconnects every
+active space binding. Repeat `login` only if the separate Codex credential should also change.
 
-## Manual Docker Compose setup
+## Isolation details
 
-The scripts above use the checked-in Compose file. If you prefer to manage the coordinator with
-Docker Compose directly after the one-time repository-based host setup, save the following as
-`compose.yaml` and create a `.env` beside it with the same three required values and optional proxy.
+Before each claim and child the coordinator verifies rootless Docker, the exact AppArmor profile,
+the pinned image and bounded free disk. Every run starts a fresh non-root child with read-only root
+filesystem, dropped capabilities, bounded CPU/RAM/PIDs, rotated logs and fresh tmpfs state. Task
+input and short-lived repository credentials enter through standard input rather than process
+arguments, image layers or persistent state. Model-authored commands have no network. The child is
+removed after success or failure.
 
-```yaml
-name: sowhat-task-worker
+Read-only Task Agent and Epic Agent check out server-snapshotted exact SHAs, remove repository
+credentials, mount repositories read-only and run Codex with approval disabled and a read-only
+sandbox. Results are reports or proposed tasks, never patches. Code claims require repository,
+commit SHA, regular path and valid line bounds. Writable accepted-card execution remains a distinct
+capability and uses only a server-owned immutable execution profile plus its independent gates.
 
-x-task-worker-image: &task-worker-image docker.io/iraccooni/sowhat-task-worker@sha256:e83edd9f6ffd2becfc552a74a9f635fc8e015d267d63688880c6f7c8289f72af
-
-x-logging: &default-logging
-  driver: json-file
-  options:
-    max-file: "3"
-    max-size: 10m
-
-services:
-  task-worker-state-init:
-    image: *task-worker-image
-    pull_policy: always
-    cap_add: [CHOWN]
-    cap_drop: [ALL]
-    entrypoint: ["/bin/sh", "-c", "exec chown 1000:1000 /state /codex-auth /failure-diagnostics"]
-    logging: *default-logging
-    mem_limit: 32m
-    network_mode: none
-    read_only: true
-    restart: "no"
-    security_opt: [no-new-privileges:true]
-    user: "0:0"
-    volumes:
-      - codex-auth:/codex-auth
-      - failure-diagnostics:/failure-diagnostics
-      - worker-state:/state
-
-  task-worker:
-    container_name: sowhat-task-worker
-    image: *task-worker-image
-    pull_policy: always
-    cap_drop: [ALL]
-    depends_on:
-      task-worker-state-init:
-        condition: service_completed_successfully
-    group_add:
-      - ${TASK_WORKER_DOCKER_SOCKET_GID:?TASK_WORKER_DOCKER_SOCKET_GID is required}
-    environment:
-      CODEX_HOME: /codex-auth
-      DOCKER_HOST: unix:///run/docker.sock
-      EPIC_AGENT_CODEX_MODEL: ${EPIC_AGENT_CODEX_MODEL:-gpt-5.6-sol}
-      EPIC_AGENT_CODEX_TIMEOUT_MS: ${EPIC_AGENT_CODEX_TIMEOUT_MS:-600000}
-      EPIC_AGENT_CONTAINER_TTL_MS: ${EPIC_AGENT_CONTAINER_TTL_MS:-3600000}
-      EPIC_AGENT_ENABLED: ${EPIC_AGENT_ENABLED:-false}
-      HTTP_PROXY: ${TASK_WORKER_HTTP_PROXY:-}
-      HTTPS_PROXY: ${TASK_WORKER_HTTP_PROXY:-}
-      LOG_LEVEL: ${LOG_LEVEL:-debug}
-      NODE_ENV: production
-      NODE_OPTIONS: --enable-source-maps --max-old-space-size=256
-      NODE_USE_ENV_PROXY: "1"
-      NO_PROXY: 127.0.0.1,localhost,::1
-      TASK_WORKER_ALLOWED_REPOSITORIES: ${TASK_WORKER_ALLOWED_REPOSITORIES:?TASK_WORKER_ALLOWED_REPOSITORIES is required}
-      TASK_AGENT_ENABLED: ${TASK_AGENT_ENABLED:-false}
-      TASK_AGENT_CODEX_MODELS: ${TASK_AGENT_CODEX_MODELS:-gpt-5.6-sol}
-      TASK_AGENT_CODEX_TIMEOUT_MS: ${TASK_AGENT_CODEX_TIMEOUT_MS:-900000}
-      TASK_AGENT_RUNTIME_PROFILES_JSON: ${TASK_AGENT_RUNTIME_PROFILES_JSON:-}
-      TASK_WORKER_EXECUTION_IMAGE: *task-worker-image
-      TASK_WORKER_RETAIN_FAILURE_DIAGNOSTICS: ${TASK_WORKER_RETAIN_FAILURE_DIAGNOSTICS:-false}
-      TASK_WORKER_HTTP_PROXY: ${TASK_WORKER_HTTP_PROXY:-}
-      TASK_WORKER_DIAGNOSTICS_INTERVAL_MS: ${TASK_WORKER_DIAGNOSTICS_INTERVAL_MS:-5000}
-      TASK_WORKER_PROCESS_MODE: coordinator
-      TASK_WORKER_REGISTRATION_TOKEN: ${TASK_WORKER_REGISTRATION_TOKEN:?TASK_WORKER_REGISTRATION_TOKEN is required}
-      TASK_WORKER_SITE_URL: ${TASK_WORKER_SITE_URL:?TASK_WORKER_SITE_URL is required}
-      TASK_WORKER_VERSION: 0.4.17
-      http_proxy: ${TASK_WORKER_HTTP_PROXY:-}
-      https_proxy: ${TASK_WORKER_HTTP_PROXY:-}
-      no_proxy: 127.0.0.1,localhost,::1
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "node",
-          "-e",
-          "fetch('http://127.0.0.1:3004/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
-        ]
-      interval: 15s
-      timeout: 3s
-      retries: 5
-      start_period: 10s
-    logging: *default-logging
-    mem_limit: 512m
-    networks: [outbound]
-    pids_limit: 128
-    read_only: true
-    restart: unless-stopped
-    security_opt: [no-new-privileges:true]
-    tmpfs:
-      - /tmp:size=64m,mode=1777,noexec,nosuid
-    volumes:
-      - codex-auth:/codex-auth
-      - failure-diagnostics:/failure-diagnostics
-      - ${TASK_WORKER_DOCKER_SOCKET_PATH:-${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is required}/docker.sock}:/run/docker.sock
-      - worker-state:/state
-
-networks:
-  outbound:
-
-volumes:
-  codex-auth:
-    name: sowhat-task-worker-codex-auth
-  failure-diagnostics:
-    name: sowhat-task-worker-failure-diagnostics
-  worker-state:
-    name: sowhat-task-worker-state
-```
-
-The one-time host setup from step 3 is still required. Then run:
-
-```bash
-chmod 0600 .env
-export DOCKER_HOST="unix://${XDG_RUNTIME_DIR}/docker.sock"
-export TASK_WORKER_DOCKER_SOCKET_PATH="${XDG_RUNTIME_DIR}/docker.sock"
-export TASK_WORKER_DOCKER_SOCKET_GID="$(getent group docker | cut -d: -f3)"
-docker info --format '{{json .SecurityOptions}}'
-docker compose pull
-docker compose up -d
-docker compose exec task-worker \
-  /app/node_modules/.bin/codex \
-  -c 'cli_auth_credentials_store="file"' \
-  login --device-auth
-docker compose restart task-worker
-docker compose exec task-worker \
-  /app/node_modules/.bin/codex \
-  -c 'cli_auth_credentials_store="file"' \
-  login status
-docker compose ps
-```
-
-The `docker info` output must include `rootless`. `TASK_WORKER_DOCKER_SOCKET_GID` is derived from
-the host's Docker group and is not an operator secret or a fifth persisted setting. Keep all three
-runtime exports set in every shell used to manage this manual Compose project.
+Content-free logs may contain worker/run identifiers, phase, elapsed time, CPU/memory and bounded
+failure codes. They never contain task text, prompts, source paths, command output, pairing values,
+worker/Codex/GitHub credentials or proxy values. The public package does not retain local failure
+bundles.
 
 ## Troubleshooting
 
-- **`Docker rootless extras are missing`** — install `docker-ce-rootless-extras`, then rerun the
-  host setup.
-- **`Missing rootless Docker socket`** — rerun the host setup as the operator that will own the
-  worker, then check `systemctl --user status docker` from a real login session for that user.
-- **`permission denied` for `/run/docker.sock`** — use tag `v0.3.4` or newer. Its helper adds the
-  coordinator to the rootless socket group while keeping the application process non-root.
-- **A dependency CLI such as `prettier` reports `Permission denied` below `/runs`** — use tag
-  `v0.3.16` or newer. It pins worker `0.3.16`, which explicitly mounts the disposable task tmpfs with
-  `exec`, and includes the matching AppArmor profile. Rerun `sudo scripts/setup-host.sh`, then
-  bootstrap the worker again.
-- **Environment file mode error** — run `chmod 0600 ~/.config/sowhat/task-worker.env`.
-- **Worker is unhealthy after bootstrap** — rerun `bootstrap` and complete the device-code login,
-  then inspect `scripts/worker.sh logs`.
-- **Codex, GitHub or worker registration cannot connect** — set a validated HTTP/HTTPS origin in
-  `TASK_WORKER_HTTP_PROXY`, rerun `scripts/worker.sh bootstrap`, and configure the rootless Docker
-  service separately if the failure happens while pulling an image.
-- **Repository is refused** — use the exact `owner/repository` spelling in the local allowlist and
-  ask the sowhat server operator to configure the same repository execution profile.
-- **Healthy worker receives no task** — verify server-wide automation, the space's Automation
-  policy, the configured source column, repository access, and that the card is accepted rather
-  than still proposed.
+- **Pairing code rejected** — create a fresh code, confirm it is less than ten minutes old and has
+  not already been used, then run `pair` again.
+- **Worker does not appear in the space** — confirm it registered under the same account, then use
+  **Connect** in that exact space; registration alone grants no space.
+- **Worker is offline** — run `scripts/worker.sh status`, then `logs`; confirm the rootless Docker
+  service and outbound HTTPS are available.
+- **Codex login missing** — run `scripts/worker.sh login`, complete device authorization and then
+  restart with `scripts/worker.sh start`.
+- **Rootless socket missing** — rerun `sudo scripts/setup-host.sh` as the same operator account and
+  check `systemctl --user status docker` from a real login session.
+- **`permission denied` for `/run/docker.sock`** — do not substitute the rootful socket; rerun the
+  pinned host setup so the helper can derive the rootless socket group.
+- **Repository refused** — connect the repository to the space and start a new authorized run. Do
+  not add a local allowlist; the exact scope comes from sowhat.
+- **Healthy worker receives no writable task** — verify the binding explicitly enables the
+  writable capability, global and space policy are enabled, the card is accepted with no blockers,
+  an exact execution profile exists and an authorized manager used **Start worker**.
 
-The coordinator stores no permanent GitHub credential, exposes no home port and removes each task
+The coordinator stores no permanent GitHub credential, exposes no home port and removes each run
 container after the attempt finishes.
