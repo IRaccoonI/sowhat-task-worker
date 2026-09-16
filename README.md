@@ -7,7 +7,7 @@ may connect several personal or system-owned workers.
 
 Public setup files are published at
 [`IRaccoonI/sowhat-task-worker`](https://github.com/IRaccoonI/sowhat-task-worker). Use tag
-`v0.4.24`; the checked-in Compose file pins the matching image by immutable digest. There is no
+`v0.4.25`; the checked-in Compose file pins the matching image by immutable digest. There is no
 `latest` tag.
 
 Do not install `v0.4.20`: its launcher used the host-side subordinate GID of a rootless Docker
@@ -16,7 +16,9 @@ GID through the same rootless daemon before starting the worker. `v0.4.22` adds 
 `preset_runtime_v1` capability used by explicitly pinned AI operation routes. `v0.4.23` keeps an
 operator-approved outbound proxy in the protected worker connection document so authenticated
 Codex traffic can cross networks that block direct access. `v0.4.24` migrates already-paired
-workers to that document without requiring a new pairing code.
+workers to that document without requiring a new pairing code. `v0.4.25` requires repository
+feature maps to cite tracked implementation evidence instead of relying only on documentation or
+deployment files.
 
 ## Authority and privacy boundary
 
@@ -54,7 +56,7 @@ worker rejects a rootful daemon. Install Docker using the official
 ### 1. Download the immutable package
 
 ```bash
-git clone --branch v0.4.24 --depth 1 \
+git clone --branch v0.4.25 --depth 1 \
   https://github.com/IRaccoonI/sowhat-task-worker.git
 cd sowhat-task-worker
 ```
@@ -87,10 +89,20 @@ removed from local state; only the issued worker credential remains, with only i
 sowhat.
 
 The public worker has no `.env` file. Do not create one. Site URL, registration secret, repository
-allowlist, model list, runtime profile, proxy and diagnostic toggles are not user settings. Safe
+allowlist, model list, runtime profile and diagnostic toggles are not environment settings. Safe
 runtime defaults live in the pinned package; exact repository scope arrives with each authorized
-run. If the host needs a network proxy, configure it for the operating system and the rootless
-Docker service instead of putting a proxy credential into sowhat state.
+run.
+
+If authenticated Codex traffic requires an outbound HTTP(S) proxy, store it through the hidden
+prompt instead of creating an environment file:
+
+```bash
+scripts/worker.sh proxy
+```
+
+The proxy URL is retained only in the mode-`0600` worker connection document and is passed to each
+isolated child at launch. Run the command again with an empty value to clear it. Treat a proxy URL
+containing credentials as a password and never print or commit it.
 
 ### 4. Authorize Codex once
 
