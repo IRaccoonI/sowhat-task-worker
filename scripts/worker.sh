@@ -111,7 +111,24 @@ case "${action}" in
     "${compose[@]}" ps
     ;;
   stop)
-    "${compose[@]}" stop task-worker
+    "${compose[@]}" stop --timeout 45 task-worker
+    mapfile -t remaining_children < <(
+      {
+        docker container ls --all --quiet \
+          --filter "label=com.sowhat.task-worker=sowhat-worker"
+        docker container ls --all --quiet \
+          --filter "label=com.sowhat.task-worker=true"
+      } | sort -u
+    )
+    if [[ "${#remaining_children[@]}" -gt 0 ]]; then
+      docker container rm --force "${remaining_children[@]}"
+    fi
+    mapfile -t remaining_workspaces < <(
+      docker volume ls --quiet --filter "label=com.sowhat.task-worker=sowhat-worker" | sort -u
+    )
+    if [[ "${#remaining_workspaces[@]}" -gt 0 ]]; then
+      docker volume rm --force "${remaining_workspaces[@]}"
+    fi
     ;;
   status)
     "${compose[@]}" ps

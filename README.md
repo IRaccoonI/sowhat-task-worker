@@ -7,7 +7,7 @@ may connect several personal or system-owned workers.
 
 Public setup files are published at
 [`IRaccoonI/sowhat-task-worker`](https://github.com/IRaccoonI/sowhat-task-worker). Use tag
-`v0.4.31`; the checked-in Compose file pins the matching image by immutable digest. There is no
+`v0.4.32`; the checked-in Compose file pins the matching image by immutable digest. There is no
 `latest` tag.
 
 Do not install `v0.4.20`: its launcher used the host-side subordinate GID of a rootless Docker
@@ -30,6 +30,8 @@ citations from being presented as universal hardening guarantees.
 evidence, splitting the component when the evidence bound would otherwise be exceeded.
 `v0.4.31` classifies non-interactive Codex failures only by their content-free JSONL lifecycle
 stage, without retaining provider error text, prompts or repository content.
+`v0.4.32` gracefully terminates an active preset runtime, reports the operator stop through its
+lease, and removes only label-scoped isolated children/workspaces left by an abnormal shutdown.
 
 ## Authority and privacy boundary
 
@@ -67,7 +69,7 @@ worker rejects a rootful daemon. Install Docker using the official
 ### 1. Download the immutable package
 
 ```bash
-git clone --branch v0.4.31 --depth 1 \
+git clone --branch v0.4.32 --depth 1 \
   https://github.com/IRaccoonI/sowhat-task-worker.git
 cd sowhat-task-worker
 ```
@@ -151,7 +153,7 @@ scripts/worker.sh status
 # Follow the newest metadata-only log lines; Ctrl+C stops following only.
 scripts/worker.sh logs
 
-# Stop the coordinator but retain pairing and Codex login.
+# Gracefully stop the coordinator and active isolated child, retaining pairing and Codex login.
 scripts/worker.sh stop
 ```
 
@@ -202,5 +204,7 @@ bundles.
   writable capability, global and space policy are enabled, the card is accepted with no blockers,
   an exact execution profile exists and an authorized manager used **Start worker**.
 
-The coordinator stores no permanent GitHub credential, exposes no home port and removes each run
-container after the attempt finishes.
+The coordinator stores no permanent GitHub credential and exposes no home port. `worker.sh stop`
+waits for an active preset run to report an operator stop, then removes any label-scoped isolated
+child or workspace left by an abnormal coordinator exit. Pairing and Codex login volumes are never
+part of that cleanup.
